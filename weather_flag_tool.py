@@ -332,23 +332,54 @@ def detect_signals(park, temp, relh, wind_eff):
 
     return sorted(sigs, key=lambda s: -s[1])
 
+def net_signal(signals):
+    """
+    Combine all factor signals into a single net direction.
+    Each signal contributes its t-stat as positive (OVER) or negative (UNDER).
+    Returns (direction, strength_label, net_score).
+    direction: "OVER", "UNDER", or "MIXED"
+    """
+    if not signals:
+        return None, None, 0
+    net = sum(s[1] if s[2] == "OVER" else -s[1] for s in signals)
+    abs_net = abs(net)
+    if abs_net < 0.5:
+        return "MIXED", None, net
+    direction = "OVER" if net > 0 else "UNDER"
+    if abs_net >= 2.5:
+        strength = "★★★ Strong"
+    elif abs_net >= 1.5:
+        strength = "★★ Moderate"
+    else:
+        strength = "★ Weak"
+    return direction, strength, net
+
+def stars(abs_t):
+    if abs_t >= 2.0: return "★★★"
+    if abs_t >= 1.5: return "★★"
+    return "★"
+
 # ── HTML generation ───────────────────────────────────────────────────────────
 def render_card(card):
-    venue     = card["venue"]
-    away      = card["away"]
-    home      = card["home"]
-    label     = card["date_label"]
-    signals   = card["signals"]
+    venue      = card["venue"]
+    away       = card["away"]
+    home       = card["home"]
+    label      = card["date_label"]
+    signals    = card["signals"]
     game_local = card.get("game_local")
-    notes     = card.get("notes", "")
+    notes      = card.get("notes", "")
 
-    # Card accent color
-    if not signals:
-        accent = "#adb5bd"  # gray
-    elif any(s[2] == "OVER" for s in signals):
-        accent = "#198754"  # Bootstrap green
+    direction, strength, net_score = net_signal(signals)
+
+    # Card accent color based on net direction
+    if direction == "OVER":
+        accent = "#198754"   # green
+    elif direction == "UNDER":
+        accent = "#dc3545"   # red
+    elif direction == "MIXED":
+        accent = "#fd7e14"   # orange — conflicting signals
     else:
-        accent = "#dc3545"  # Bootstrap red
+        accent = "#adb5bd"   # gray — no signal
 
     # Time string
     time_str = game_local.strftime("%-I:%M %p %Z") if game_local else "TBD"
@@ -386,21 +417,25 @@ def render_card(card):
     wx_line = " &nbsp;·&nbsp; ".join(wx_parts) if wx_parts else \
               "<em class='text-muted'>weather unavailable</em>"
 
-    # Signal badges
-    badge_html = ""
-    for (factor, abs_t, direction, cond) in signals:
-        color = "success" if direction == "OVER" else "danger"
-        stars = "★★ " if abs_t >= 2.0 else "★ " if abs_t >= 1.5 else ""
-        badge_html += (f'<span class="badge text-bg-{color} me-1 mb-1">'
-                       f'{stars}{direction} · {factor.lower()} · t={abs_t:.1f}</span>')
+    # Net signal headline
+    if direction == "OVER":
+        headline = (f'<span class="badge text-bg-success" style="font-size:0.85rem">'
+                    f'⬆ OVER lean &nbsp; {strength}</span>')
+    elif direction == "UNDER":
+        headline = (f'<span class="badge text-bg-danger" style="font-size:0.85rem">'
+                    f'⬇ UNDER lean &nbsp; {strength}</span>')
+    elif direction == "MIXED":
+        headline = (f'<span class="badge text-bg-warning text-dark" style="font-size:0.85rem">'
+                    f'↔ Mixed signals — no clear lean</span>')
+    else:
+        headline = '<span class="text-muted" style="font-size:0.8rem">No signal at this venue</span>'
 
-    if not badge_html:
-        badge_html = '<span class="text-muted" style="font-size:0.8rem">No signal flagged</span>'
-
-    # Signal detail list
+    # Factor detail list (supporting evidence)
     detail_lines = ""
-    for (factor, abs_t, direction, cond) in signals:
-        detail_lines += f'<li style="font-size:0.8rem">{cond} → {direction} lean (t={abs_t:.2f})</li>'
+    for (factor, abs_t, dir_, cond) in signals:
+        arrow = "⬆" if dir_ == "OVER" else "⬇"
+        detail_lines += (f'<li style="font-size:0.78rem">'
+                         f'{stars(abs_t)} {cond} → {arrow} {dir_} ({factor.lower()})</li>')
     detail_html = f'<ul class="mb-0 ps-3 mt-1">{detail_lines}</ul>' if detail_lines else ""
 
     # Notes
@@ -417,7 +452,7 @@ def render_card(card):
         </div>
       </div>
       <div class="mt-1" style="font-size:0.82rem">{wx_line}</div>
-      <div class="mt-1">{badge_html}</div>
+      <div class="mt-1">{headline}</div>
       {detail_html}
       {notes_html}
     </div>
@@ -462,8 +497,9 @@ def generate_html(cards, generated_at):
   </div>
   <div class="alert alert-secondary py-1 px-2 mb-3" style="font-size:0.75rem">
     ⚠️ Weather signals are <strong>confirmatory only</strong> — layer on top of
-    a sharp-money signal. Never bet weather alone.
-    ★★ = t≥2.0 &nbsp; ★ = t≥1.5
+    a sharp-money signal. Never bet weather alone.<br>
+    ★★★ Strong &nbsp;·&nbsp; ★★ Moderate &nbsp;·&nbsp; ★ Weak &nbsp;·&nbsp;
+    ↔ Mixed = signals conflict, skip
   </div>
 
   {card_html}
