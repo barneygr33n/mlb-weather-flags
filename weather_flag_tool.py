@@ -384,8 +384,8 @@ def render_card(card):
     # Time string
     time_str = game_local.strftime("%-I:%M %p %Z") if game_local else "TBD"
 
-    # Day badge
-    day_badge_color = "primary" if label == "TODAY" else "secondary"
+    # Day badge — primary (blue) for the first/earlier date, secondary for the next
+    day_badge_color = "primary" if card.get("is_first") else "secondary"
     day_badge = f'<span class="badge text-bg-{day_badge_color} ms-1">{label}</span>'
 
     # Weather summary line
@@ -460,10 +460,18 @@ def render_card(card):
 
 
 def generate_html(cards, generated_at):
-    flagged_today    = sum(1 for c in cards if c["signals"] and c["date_label"] == "TODAY")
-    flagged_tomorrow = sum(1 for c in cards if c["signals"] and c["date_label"] == "TOMORROW")
-    total_today      = sum(1 for c in cards if c["date_label"] == "TODAY")
-    total_tomorrow   = sum(1 for c in cards if c["date_label"] == "TOMORROW")
+    # Collect the two unique day labels in order
+    seen = []
+    for c in cards:
+        if c["date_label"] not in seen:
+            seen.append(c["date_label"])
+    day1 = seen[0] if len(seen) > 0 else "Day 1"
+    day2 = seen[1] if len(seen) > 1 else "Day 2"
+
+    flagged_today    = sum(1 for c in cards if c["signals"] and c.get("is_first"))
+    flagged_tomorrow = sum(1 for c in cards if c["signals"] and not c.get("is_first"))
+    total_today      = sum(1 for c in cards if c.get("is_first"))
+    total_tomorrow   = sum(1 for c in cards if not c.get("is_first"))
     gen_str = generated_at.strftime("%b %-d, %Y · %-I:%M %p UTC")
 
     card_html = "".join(render_card(c) for c in cards)
@@ -492,8 +500,8 @@ def generate_html(cards, generated_at):
   <h5 class="mb-1">⚾ MLB Weather Flags</h5>
   <div class="text-muted mb-2" style="font-size:0.78rem">
     Updated: {gen_str}<br>
-    Today: <strong>{flagged_today}</strong>/{total_today} flagged &nbsp;·&nbsp;
-    Tomorrow: <strong>{flagged_tomorrow}</strong>/{total_tomorrow} flagged
+    {day1}: <strong>{flagged_today}</strong>/{total_today} flagged &nbsp;·&nbsp;
+    {day2}: <strong>{flagged_tomorrow}</strong>/{total_tomorrow} flagged
   </div>
   <div class="alert alert-secondary py-1 px-2 mb-3" style="font-size:0.75rem">
     ⚠️ Weather signals are <strong>confirmatory only</strong> — layer on top of
@@ -520,12 +528,13 @@ def main():
     tomorrow = today + datetime.timedelta(days=1)
 
     print(f"MLB Weather Flag Tool — {now_utc.strftime('%Y-%m-%d %H:%M UTC')}")
-    print(f"Running for: TODAY={today}  TOMORROW={tomorrow}\n")
+    print(f"Running for: {today.strftime('%A %Y-%m-%d')}  {tomorrow.strftime('%A %Y-%m-%d')}\n")
 
     all_cards = []
 
-    for date_label, date_obj in [("TODAY", today), ("TOMORROW", tomorrow)]:
-        date_str = date_obj.strftime("%Y-%m-%d")
+    for is_first, date_obj in [(True, today), (False, tomorrow)]:
+        date_label = date_obj.strftime("%A")   # "Thursday", "Friday", etc.
+        date_str   = date_obj.strftime("%Y-%m-%d")
         games = fetch_schedule(date_str)
         print(f"{date_label} ({date_str}): {len(games)} scheduled game(s)")
 
@@ -535,7 +544,8 @@ def main():
 
             card = {
                 "venue": venue, "away": game["away"], "home": game["home"],
-                "date_label": date_label, "game_dt_str": game["game_dt_str"],
+                "date_label": date_label, "is_first": is_first,
+                "game_dt_str": game["game_dt_str"],
                 "park_in_model": park is not None,
                 "temp": None, "relh": None, "wind_speed": None,
                 "wind_dir": None, "wind_eff": 0.0, "game_local": None,
