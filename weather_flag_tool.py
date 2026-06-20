@@ -99,7 +99,7 @@ PARKS = {
         "temp_b":  0.0075, "temp_t":  0.12,
         "relh_b":  0.0151, "relh_t":  0.60,
         "wind_b":  0.0940, "wind_t":  2.16,
-        "notes": "Verify roof is OPEN before using signal.",
+        "notes": "",
     },
     "PNC Park": {
         "lat": 40.4469, "lon": -80.0057, "cf_bearing": 30, "tz": "America/New_York",
@@ -165,7 +165,46 @@ VENUE_MAP = {
     "Guaranteed Rate Field":           "Guaranteed Rate Field",  # keep
     "LoanDepot Park":                  "LoanDepot Park",
     "loanDepot park":                  "LoanDepot Park",
+    # A's moved to Sacramento in 2025
+    "Sutter Health Park":              "Sutter Health Park",
+    "Sutter Health Park West Sacramento": "Sutter Health Park",
+    # Dodger Stadium naming rights change (2026)
+    "UNIQLO Field at Dodger Stadium":  "Dodger Stadium",
 }
+
+# Dome and retractable-roof parks excluded from weather model.
+# Roof status can't be determined automatically, so no weather signal is possible.
+DOME_VENUES = {
+    "Globe Life Field",       # Texas Rangers — retractable roof
+    "Tropicana Field",        # Tampa Bay Rays — fixed dome
+    "LoanDepot Park",         # Miami Marlins — retractable roof
+    "loanDepot park",
+    "Chase Field",            # Arizona Diamondbacks — retractable roof
+    "Daikin Park",            # Houston Astros (fmr. Minute Maid Park) — retractable roof
+    "Minute Maid Park",
+}
+
+# Parks in the model that have retractable roofs.
+# Weather signals only apply when the roof is open.
+RETRACTABLE_ROOF_PARKS = {
+    "Rogers Centre",        # Toronto Blue Jays
+    "American Family Field", # Milwaukee Brewers
+    "T-Mobile Park",        # Seattle Mariners
+}
+
+def roof_status(temp, precip_prob):
+    """Estimate whether a retractable roof is likely open or closed.
+    Returns 'likely_open', 'likely_closed', or 'uncertain'."""
+    if temp is None:
+        return "uncertain"
+    rain_likely = precip_prob is not None and precip_prob > 40
+    cold = temp < 54
+    warm_and_dry = temp >= 65 and (precip_prob is None or precip_prob <= 20)
+    if cold or rain_likely:
+        return "likely_closed"
+    elif warm_and_dry:
+        return "likely_open"
+    return "uncertain"
 
 def normalize_venue(name):
     return VENUE_MAP.get(name, name)
@@ -214,7 +253,7 @@ def fetch_hourly_wx(lat, lon, tz_str):
     try:
         r = requests.get("https://api.open-meteo.com/v1/forecast", timeout=20, params={
             "latitude": lat, "longitude": lon,
-            "hourly": "temperature_2m,relativehumidity_2m,windspeed_10m,winddirection_10m",
+            "hourly": "temperature_2m,relativehumidity_2m,windspeed_10m,winddirection_10m,precipitation_probability",
             "temperature_unit": "fahrenheit",
             "windspeed_unit": "mph",
             "timezone": tz_str,
@@ -230,10 +269,11 @@ def fetch_hourly_wx(lat, lon, tz_str):
     result = {}
     for i, t in enumerate(h.get("time", [])):
         result[t] = {
-            "temp":      h["temperature_2m"][i]      if i < len(h.get("temperature_2m", [])) else None,
-            "relh":      h["relativehumidity_2m"][i] if i < len(h.get("relativehumidity_2m", [])) else None,
-            "windspeed": h["windspeed_10m"][i]        if i < len(h.get("windspeed_10m", [])) else None,
-            "winddir":   h["winddirection_10m"][i]    if i < len(h.get("winddirection_10m", [])) else None,
+            "temp":       h["temperature_2m"][i]           if i < len(h.get("temperature_2m", [])) else None,
+            "relh":       h["relativehumidity_2m"][i]      if i < len(h.get("relativehumidity_2m", [])) else None,
+            "windspeed":  h["windspeed_10m"][i]            if i < len(h.get("windspeed_10m", [])) else None,
+            "winddir":    h["winddirection_10m"][i]        if i < len(h.get("winddirection_10m", [])) else None,
+            "precip_prob": h["precipitation_probability"][i] if i < len(h.get("precipitation_probability", [])) else None,
         }
     _wx_cache[key] = result
     return result
@@ -401,6 +441,28 @@ def render_card(card):
     day_badge_color = "primary" if card.get("is_first") else "secondary"
     day_badge = f'<span class="badge text-bg-{day_badge_color} ms-1">{label}</span>'
 
+    # Roof status for retractable-roof parks
+    precip_prob = card.get("precip_prob")
+    temp_val    = card.get("temp")
+    is_retractable = venue in RETRACTABLE_ROOF_PARKS
+    r_status = roof_status(temp_val, precip_prob) if is_retractable else None
+
+    if r_status == "likely_open":
+        roof_html = ('<div class="mt-1"><span class="badge text-bg-success" style="font-size:0.78rem">'
+                     '🏟 Roof likely OPEN — signals apply</span></div>')
+    elif r_status == "likely_closed":
+        roof_html = ('<div class="mt-1"><span class="badge text-bg-secondary" style="font-size:0.78rem">'
+                     '🏟 Roof likely CLOSED — signals may not apply</span></div>')
+        # suppress signals — roof closed makes weather irrelevant
+        signals = []
+        direction, strength, net_score = None, None, 0
+        accent = "#adb5bd"
+    elif r_status == "uncertain":
+        roof_html = ('<div class="mt-1"><span class="badge text-bg-warning text-dark" style="font-size:0.78rem">'
+                     '🏟 Roof status uncertain — verify before betting</span></div>')
+    else:
+        roof_html = ""
+
     # Weather summary line
     wx_parts = []
     temp = card.get("temp")
@@ -427,8 +489,12 @@ def render_card(card):
         else:
             we_tag = ""
         wx_parts.append(f"🌬&nbsp;{wspd:.0f}&nbsp;mph&nbsp;{wd_str}{we_tag}")
-    wx_line = " &nbsp;·&nbsp; ".join(wx_parts) if wx_parts else \
-              "<em class='text-muted'>weather unavailable</em>"
+    if wx_parts:
+        wx_line = " &nbsp;·&nbsp; ".join(wx_parts)
+    elif card.get("dome"):
+        wx_line = "<em class='text-muted'>🏟 Dome/retractable roof — weather not applicable</em>"
+    else:
+        wx_line = "<em class='text-muted'>weather unavailable</em>"
 
     # Net signal headline
     if direction == "OVER":
@@ -465,6 +531,7 @@ def render_card(card):
         </div>
       </div>
       <div class="mt-1" style="font-size:0.82rem">{wx_line}</div>
+      {roof_html}
       <div class="mt-1">{headline}</div>
       {detail_html}
       {notes_html}
@@ -560,8 +627,10 @@ def main():
                 "date_label": date_label, "is_first": is_first,
                 "game_dt_str": game["game_dt_str"],
                 "park_in_model": park is not None,
+                "dome": venue_raw in DOME_VENUES or venue in DOME_VENUES,
                 "temp": None, "relh": None, "wind_speed": None,
                 "wind_dir": None, "wind_eff": 0.0, "game_local": None,
+                "precip_prob": None,
                 "signals": [],
                 "notes": park.get("notes", "") if park else "",
             }
@@ -571,16 +640,18 @@ def main():
                 wx, game_local = wx_at_gametime(hourly, game["game_dt_str"], park["tz"], game["date"])
 
                 if wx and game_local:
-                    temp = wx["temp"]
-                    relh = wx["relh"]
-                    wspd = wx["windspeed"]
-                    wdir = wx["winddir"]
-                    we   = calc_eff_wind(wspd, wdir, park["cf_bearing"])
+                    temp       = wx["temp"]
+                    relh       = wx["relh"]
+                    wspd       = wx["windspeed"]
+                    wdir       = wx["winddir"]
+                    precip_prob = wx.get("precip_prob")
+                    we         = calc_eff_wind(wspd, wdir, park["cf_bearing"])
 
                     card.update({
                         "temp": temp, "relh": relh,
                         "wind_speed": wspd, "wind_dir": wdir,
                         "wind_eff": we, "game_local": game_local,
+                        "precip_prob": precip_prob,
                         "signals": detect_signals(park, temp, relh, we),
                     })
                     flag = "✓" if card["signals"] else "·"
