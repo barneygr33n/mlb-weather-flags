@@ -156,6 +156,18 @@ PARKS = {
         "relh_b": -0.0037, "relh_t": -0.12,
         "wind_b": -0.0098, "wind_t": -0.08,
     },
+    "Sutter Health Park": {
+        # A's home starting 2025. Only ~1 season of data — OLS model not yet validated.
+        # Weather coefficients set to 0 (no weather signals until sample grows).
+        # Sacramentovers note appears on every card instead.
+        "lat": 38.5769, "lon": -121.5059, "cf_bearing": 45, "tz": "America/Los_Angeles",
+        "temp_b": 0.0, "temp_t": 0.0,
+        "relh_b": 0.0, "relh_t": 0.0,
+        "wind_b": 0.0, "wind_t": 0.0,
+        "notes": "⚾ SACRAMENTOVERS: Sutter Health Park showed strong unconditional Over lean in 2025 "
+                 "(FG Over 54% W/L, F5 Over 61% W/L). Weather model not yet validated — insufficient sample. "
+                 "Treat any sharp Over signal here as reinforced by park factor.",
+    },
 }
 
 # Normalize MLB Stats API venue names → PARKS dict keys
@@ -165,6 +177,9 @@ VENUE_MAP = {
     "Guaranteed Rate Field":           "Guaranteed Rate Field",  # keep
     "LoanDepot Park":                  "LoanDepot Park",
     "loanDepot park":                  "LoanDepot Park",
+    # A's moved to Sacramento in 2025
+    "Sutter Health Park":              "Sutter Health Park",
+    "Sutter Health Park West Sacramento": "Sutter Health Park",
 }
 
 def normalize_venue(name):
@@ -472,7 +487,8 @@ def generate_html(cards, generated_at):
     flagged_tomorrow = sum(1 for c in cards if c["signals"] and not c.get("is_first"))
     total_today      = sum(1 for c in cards if c.get("is_first"))
     total_tomorrow   = sum(1 for c in cards if not c.get("is_first"))
-    gen_str = generated_at.strftime("%b %-d, %Y · %-I:%M %p UTC")
+    gen_central = generated_at.astimezone(ZoneInfo("America/Chicago"))
+    gen_str = gen_central.strftime("%b %-d, %Y · %-I:%M %p %Z")
 
     card_html = "".join(render_card(c) for c in cards)
 
