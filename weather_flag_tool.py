@@ -156,18 +156,6 @@ PARKS = {
         "relh_b": -0.0037, "relh_t": -0.12,
         "wind_b": -0.0098, "wind_t": -0.08,
     },
-    "Sutter Health Park": {
-        # A's home starting 2025. Only ~1 season of data — OLS model not yet validated.
-        # Weather coefficients set to 0 (no weather signals until sample grows).
-        # Sacramentovers note appears on every card instead.
-        "lat": 38.5769, "lon": -121.5059, "cf_bearing": 45, "tz": "America/Los_Angeles",
-        "temp_b": 0.0, "temp_t": 0.0,
-        "relh_b": 0.0, "relh_t": 0.0,
-        "wind_b": 0.0, "wind_t": 0.0,
-        "notes": "⚾ SACRAMENTOVERS: Sutter Health Park showed strong unconditional Over lean in 2025 "
-                 "(FG Over 54% W/L, F5 Over 61% W/L). Weather model not yet validated — insufficient sample. "
-                 "Treat any sharp Over signal here as reinforced by park factor.",
-    },
 }
 
 # Normalize MLB Stats API venue names → PARKS dict keys
@@ -177,9 +165,6 @@ VENUE_MAP = {
     "Guaranteed Rate Field":           "Guaranteed Rate Field",  # keep
     "LoanDepot Park":                  "LoanDepot Park",
     "loanDepot park":                  "LoanDepot Park",
-    # A's moved to Sacramento in 2025
-    "Sutter Health Park":              "Sutter Health Park",
-    "Sutter Health Park West Sacramento": "Sutter Health Park",
 }
 
 def normalize_venue(name):
@@ -253,23 +238,36 @@ def fetch_hourly_wx(lat, lon, tz_str):
     _wx_cache[key] = result
     return result
 
-def wx_at_gametime(hourly, game_dt_str, tz_str):
-    """Return (weather_dict, game_local_datetime) for the hour closest to game start."""
-    if not game_dt_str:
-        return None, None
-    try:
-        game_dt = datetime.datetime.fromisoformat(game_dt_str.replace("Z", "+00:00"))
-        local = game_dt.astimezone(ZoneInfo(tz_str))
-        # Round to nearest hour
-        target = local.replace(minute=0, second=0, microsecond=0)
-        if local.minute >= 30:
-            target += datetime.timedelta(hours=1)
-        for delta in [0, 1, -1, 2, -2]:
-            key = (target + datetime.timedelta(hours=delta)).strftime("%Y-%m-%dT%H:%M")
-            if key in hourly:
-                return hourly[key], local
-    except Exception as e:
-        print(f"  Gametime lookup error: {e}", file=sys.stderr)
+def wx_at_gametime(hourly, game_dt_str, tz_str, date_str=None):
+    """Return (weather_dict, game_local_datetime) for the hour closest to game start.
+    Falls back to 3pm local time if game_dt_str is missing (TBD games)."""
+    local = None
+    if game_dt_str:
+        try:
+            game_dt = datetime.datetime.fromisoformat(game_dt_str.replace("Z", "+00:00"))
+            local = game_dt.astimezone(ZoneInfo(tz_str))
+        except Exception as e:
+            print(f"  Gametime parse error: {e}", file=sys.stderr)
+
+    if local is None:
+        # TBD game — fall back to 3pm local as a reasonable median
+        try:
+            base = datetime.date.fromisoformat(date_str) if date_str else datetime.date.today()
+            local = datetime.datetime(base.year, base.month, base.day, 15, 0,
+                                      tzinfo=ZoneInfo(tz_str))
+            print(f"  TBD game time — using 3pm local fallback", file=sys.stderr)
+        except Exception as e:
+            print(f"  TBD fallback error: {e}", file=sys.stderr)
+            return None, None
+
+    # Round to nearest hour
+    target = local.replace(minute=0, second=0, microsecond=0)
+    if local.minute >= 30:
+        target += datetime.timedelta(hours=1)
+    for delta in [0, 1, -1, 2, -2]:
+        key = (target + datetime.timedelta(hours=delta)).strftime("%Y-%m-%dT%H:%M")
+        if key in hourly:
+            return hourly[key], local
     return None, None
 
 # ── Wind math ─────────────────────────────────────────────────────────────────
@@ -487,8 +485,7 @@ def generate_html(cards, generated_at):
     flagged_tomorrow = sum(1 for c in cards if c["signals"] and not c.get("is_first"))
     total_today      = sum(1 for c in cards if c.get("is_first"))
     total_tomorrow   = sum(1 for c in cards if not c.get("is_first"))
-    gen_central = generated_at.astimezone(ZoneInfo("America/Chicago"))
-    gen_str = gen_central.strftime("%b %-d, %Y · %-I:%M %p %Z")
+    gen_str = generated_at.strftime("%b %-d, %Y · %-I:%M %p UTC")
 
     card_html = "".join(render_card(c) for c in cards)
 
@@ -571,7 +568,7 @@ def main():
 
             if park:
                 hourly = fetch_hourly_wx(park["lat"], park["lon"], park["tz"])
-                wx, game_local = wx_at_gametime(hourly, game["game_dt_str"], park["tz"])
+                wx, game_local = wx_at_gametime(hourly, game["game_dt_str"], park["tz"], game["date"])
 
                 if wx and game_local:
                     temp = wx["temp"]
