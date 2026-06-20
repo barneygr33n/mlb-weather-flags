@@ -156,6 +156,16 @@ PARKS = {
         "relh_b": -0.0037, "relh_t": -0.12,
         "wind_b": -0.0098, "wind_t": -0.08,
     },
+    # A's relocated to Sacramento in 2025 — not yet in regression model (insufficient sample)
+    "Sutter Health Park": {
+        "lat": 38.5769, "lon": -121.5059, "cf_bearing": 45, "tz": "America/Los_Angeles",
+        "temp_b": 0.0, "temp_t": 0.0,
+        "relh_b": 0.0, "relh_t": 0.0,
+        "wind_b": 0.0, "wind_t": 0.0,
+        "notes": "⚾ SACRAMENTOVERS: Sutter Health Park showed a strong unconditional Over lean in 2025 "
+                 "(FG Over 54% W/L, F5 Over 61% W/L). Weather model not yet validated — insufficient sample. "
+                 "Treat any sharp Over signal here as reinforced by park factor.",
+    },
 }
 
 # Normalize MLB Stats API venue names → PARKS dict keys
@@ -552,7 +562,8 @@ def generate_html(cards, generated_at):
     flagged_tomorrow = sum(1 for c in cards if c["signals"] and not c.get("is_first"))
     total_today      = sum(1 for c in cards if c.get("is_first"))
     total_tomorrow   = sum(1 for c in cards if not c.get("is_first"))
-    gen_str = generated_at.strftime("%b %-d, %Y · %-I:%M %p UTC")
+    gen_central = generated_at.astimezone(ZoneInfo("America/Chicago"))
+    gen_str = gen_central.strftime("%b %-d, %Y · %-I:%M %p %Z")
 
     card_html = "".join(render_card(c) for c in cards)
 
@@ -594,7 +605,7 @@ def generate_html(cards, generated_at):
 
   <div class="text-muted text-center mt-3" style="font-size:0.72rem">
     Model: per-park OLS (gap ~ temp + relh + eff_wind) · 5,393 games 2023–2025<br>
-    CF bearings approximate · Rogers Centre: verify roof open
+    CF bearings approximate · Retractable roof status estimated from temp/precip conditions
   </div>
 </div>
 </body>
