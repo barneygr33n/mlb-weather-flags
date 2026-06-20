@@ -627,7 +627,7 @@ def main():
                 "date_label": date_label, "is_first": is_first,
                 "game_dt_str": game["game_dt_str"],
                 "park_in_model": park is not None,
-                "dome": venue_raw in DOME_VENUES or venue in DOME_VENUES,
+                "dome": game.get("venue_raw", venue) in DOME_VENUES or venue in DOME_VENUES,
                 "temp": None, "relh": None, "wind_speed": None,
                 "wind_dir": None, "wind_eff": 0.0, "game_local": None,
                 "precip_prob": None,
