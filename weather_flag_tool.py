@@ -29,7 +29,9 @@ UTC = ZoneInfo("UTC")
 
 PARKS = {
     "Fenway Park": {
-        "lat": 42.3467, "lon": -71.0972, "cf_bearing": 95, "tz": "America/New_York",
+        "lat": 42.3467, "lon": -71.0972, "cf_bearing": 21, "tz": "America/New_York",
+        # cf_bearing corrected 2026-06-25: was 95° (E), should be ~21° (NNE).
+        # Fenway documented as "NE but further north than Rule 1.04." wind_t=0.17 (noise).
         "temp_b": -0.0207, "temp_t": -0.82,
         "relh_b": -0.0330, "relh_t": -2.10,
         "wind_b":  0.0093, "wind_t":  0.17,
@@ -53,7 +55,11 @@ PARKS = {
         "wind_b":  0.0216, "wind_t":  0.43,
     },
     "Nationals Park": {
-        "lat": 38.8730, "lon": -77.0074, "cf_bearing": 355, "tz": "America/New_York",
+        "lat": 38.8730, "lon": -77.0074, "cf_bearing": 37, "tz": "America/New_York",
+        # cf_bearing corrected 2026-06-25: was 355° (N), should be ~37° (NNE).
+        # Confirmed ENE orientation from multiple sources. WIND SIGNAL ACTIVE (t=-1.95).
+        # ⚠ wind_b coefficient was fit on wrong bearing — sign may be unreliable.
+        # Refit regression before trusting wind signals at Nationals Park.
         "temp_b":  0.0414, "temp_t":  1.46,
         "relh_b":  0.0040, "relh_t":  0.24,
         "wind_b": -0.0955, "wind_t": -1.95,
@@ -71,13 +77,20 @@ PARKS = {
         "wind_b": -0.0791, "wind_t": -1.21,
     },
     "Oracle Park": {
-        "lat": 37.7786, "lon": -122.3893, "cf_bearing": 315, "tz": "America/Los_Angeles",
+        "lat": 37.7786, "lon": -122.3893, "cf_bearing": 44, "tz": "America/Los_Angeles",
+        # cf_bearing corrected 2026-06-25: was 315° (NW), should be ~44° (NE).
+        # Park was rotated 90° CW from original NW design to manage bay wind.
+        # wind_t=-0.54 (noise) — no active wind signal, bearing error was causing today's
+        # Giants game to show "IN" instead of "OUT" for WSW wind.
         "temp_b":  0.0369, "temp_t":  0.53,
         "relh_b": -0.0435, "relh_t": -1.56,
         "wind_b": -0.0224, "wind_t": -0.54,
     },
     "Wrigley Field": {
-        "lat": 41.9484, "lon": -87.6553, "cf_bearing": 50, "tz": "America/Chicago",
+        "lat": 41.9484, "lon": -87.6553, "cf_bearing": 35, "tz": "America/Chicago",
+        # cf_bearing updated 2026-06-25: was 50° (NE), GPS calc suggests ~29°.
+        # Sources say "NE but further north than Rule 1.04" — estimated 35° as midpoint.
+        # WIND SIGNAL ACTIVE (t=2.27) — verify bearing precisely before full trust.
         "temp_b": -0.0260, "temp_t": -1.08,
         "relh_b":  0.0030, "relh_t":  0.16,
         "wind_b":  0.0806, "wind_t":  2.27,
@@ -89,7 +102,10 @@ PARKS = {
         "wind_b":  0.0114, "wind_t":  0.27,
     },
     "T-Mobile Park": {
-        "lat": 47.5914, "lon": -122.3325, "cf_bearing": 345, "tz": "America/Los_Angeles",
+        "lat": 47.5914, "lon": -122.3325, "cf_bearing": 30, "tz": "America/Los_Angeles",
+        # cf_bearing corrected 2026-06-25: was 345° (NNW), should be ~30° (NNE).
+        # Confirmed NE orientation; sun rises over CF wall. WIND SIGNAL ACTIVE (t=-1.18).
+        # ⚠ wind_b coefficient was fit on wrong bearing — refit before trusting wind signals.
         "temp_b":  0.0431, "temp_t":  1.24,
         "relh_b":  0.0299, "relh_t":  1.14,
         "wind_b": -0.0774, "wind_t": -1.18,
@@ -108,7 +124,10 @@ PARKS = {
         "wind_b":  0.0428, "wind_t":  0.91,
     },
     "Comerica Park": {
-        "lat": 42.3390, "lon": -83.0485, "cf_bearing": 355, "tz": "America/Detroit",
+        "lat": 42.3390, "lon": -83.0485, "cf_bearing": 172, "tz": "America/Detroit",
+        # cf_bearing corrected 2026-06-25: was 355° (N), should be ~172° (S).
+        # Comerica is the MOST SOUTHWARD park in MLB — batter faces south, CF is to south.
+        # wind_t=-0.52 (noise) — no active wind signal. Major error but low practical impact.
         "temp_b":  0.0285, "temp_t":  1.09,
         "relh_b":  0.0031, "relh_t":  0.18,
         "wind_b": -0.0200, "wind_t": -0.52,
@@ -151,7 +170,9 @@ PARKS = {
         "wind_b":  0.0028, "wind_t":  0.06,
     },
     "Petco Park": {
-        "lat": 32.7076, "lon": -117.1570, "cf_bearing": 320, "tz": "America/Los_Angeles",
+        "lat": 32.7076, "lon": -117.1570, "cf_bearing": 358, "tz": "America/Los_Angeles",
+        # cf_bearing corrected 2026-06-25: was 320° (NW), should be ~358° (due N).
+        # Multiple sources confirm batter faces north, CF due north. wind_t=-0.08 (noise).
         "temp_b":  0.0296, "temp_t":  0.64,
         "relh_b": -0.0037, "relh_t": -0.12,
         "wind_b": -0.0098, "wind_t": -0.08,
