@@ -33,11 +33,11 @@ jobs:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
         run: python weather_flag_tool.py
 
-      - name: Commit and push updated HTML
+      - name: Commit and push updated HTML + totals log
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/index.html
+          git add docs/index.html docs/totals_log.csv
           # Only commit if there are changes
           git diff --staged --quiet || \
             git commit -m "Update weather flags $(date -u +'%Y-%m-%d %H:%M UTC')"
