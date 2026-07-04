@@ -1,12 +1,25 @@
 #!/usr/bin/env python3
 """
-MLB Weather Flag Tool
+MLB Weather Flag Tool — v2: TOTALS ORIGINATION (2026-07-04)
 Runs via GitHub Actions at 5am and 5pm CDT (10:00 and 22:00 UTC).
 Outputs docs/index.html — served via GitHub Pages.
 
-Data sources (no API keys required):
+v2 changes:
+  - Coefficients replaced with gap-vs-OPENER betas (weather_market_residual.py,
+    5,393 games 2023-2025). The opener is the bettable target: temp/wind get
+    priced by close, humidity NEVER gets priced (see project memory).
+  - Originates a fair total per game: market total + sum of beta x (forecast
+    condition - park baseline). Confirmed-factor-only adjustment drives flags;
+    full-model adjustment shown as info.
+  - Market totals from The Odds API (env ODDS_API_KEY, GitHub secret).
+    Degrades gracefully: no key/no line -> shows run adjustment only.
+  - Flag tiers per park factor: STRONG (|t|>=2.0 vs opener), MODERATE (1.5-2.0).
+    Flag fires when confirmed-factor adjustment >= 0.5 runs.
+
+Data sources:
   MLB schedule: statsapi.mlb.com
   Weather:      api.open-meteo.com
+  Totals:       api.the-odds-api.com (optional, ODDS_API_KEY)
 """
 
 import json, math, os, sys, datetime, requests
@@ -15,7 +28,15 @@ from zoneinfo import ZoneInfo
 UTC = ZoneInfo("UTC")
 
 # ── Park data ─────────────────────────────────────────────────────────────────
-# Coefficients: per-park OLS gap ~ temp + relh + eff_wind (June 2026 model)
+# Coefficients: per-park OLS gap_open ~ temp + relh + eff_wind
+#   gap_open = actual runs − OPENING total (weather_market_residual.py, 2026-07-04)
+#   These betas ARE the origination model: adj = Σ β × (condition − baseline)
+#   predicts how far the opener will miss. fair total = market total + adj.
+# base_temp/base_relh: park's historical mean conditions (2023–2025 sample).
+#   Wind baseline is 0 (calm/cross = no adjustment).
+# confirmed: factors with |t| >= 1.5 vs the opener at that park.
+#   "strong" = |t| >= 2.0, "moderate" = 1.5–2.0. Only confirmed factors
+#   contribute to the flag-driving adjustment; full-model adj is informational.
 # cf_bearing: compass degrees FROM home plate TOWARD center field
 #   used to compute eff_wind = wind_speed × cos(wind_vector_dir − cf_bearing)
 #   wind_vector_dir = (met_wind_dir + 180) % 360  (where wind is GOING, not coming from)
@@ -29,153 +50,202 @@ UTC = ZoneInfo("UTC")
 
 PARKS = {
     "Fenway Park": {
-        "lat": 42.3467, "lon": -71.0972, "cf_bearing": 21, "tz": "America/New_York",
-        # cf_bearing corrected 2026-06-25: was 95° (E), should be ~21° (NNE).
-        # Fenway documented as "NE but further north than Rule 1.04." wind_t=0.17 (noise).
-        "temp_b": -0.0207, "temp_t": -0.82,
-        "relh_b": -0.0330, "relh_t": -2.10,
-        "wind_b":  0.0093, "wind_t":  0.17,
+        "lat": 42.3467, "lon": -71.0972, "cf_bearing": 95, "tz": "America/New_York",
+        "temp_b": -0.0074, "temp_t": -0.29,
+        "relh_b": -0.0391, "relh_t": -2.45,
+        "wind_b":  0.0155, "wind_t":  0.28,
+        "base_temp": 68.9, "base_relh": 66.3,
+        "confirmed": {"relh": "strong"},
     },
     "Yankee Stadium": {
         "lat": 40.8296, "lon": -73.9262, "cf_bearing": 355, "tz": "America/New_York",
-        "temp_b":  0.0445, "temp_t":  1.82,
-        "relh_b":  0.0059, "relh_t":  0.35,
-        "wind_b":  0.0168, "wind_t":  0.44,
+        "temp_b":  0.0559, "temp_t":  2.27,
+        "relh_b":  0.0014, "relh_t":  0.08,
+        "wind_b":  0.0220, "wind_t":  0.57,
+        "base_temp": 71.9, "base_relh": 54.3,
+        "confirmed": {"temp": "strong"},
     },
     "Citi Field": {
         "lat": 40.7571, "lon": -73.8458, "cf_bearing": 40, "tz": "America/New_York",
-        "temp_b":  0.0448, "temp_t":  1.62,
-        "relh_b": -0.0356, "relh_t": -2.11,
-        "wind_b":  0.0318, "wind_t":  0.74,
+        "temp_b":  0.0463, "temp_t":  1.66,
+        "relh_b": -0.0370, "relh_t": -2.17,
+        "wind_b":  0.0457, "wind_t":  1.05,
+        "base_temp": 72.1, "base_relh": 51.4,
+        "confirmed": {"relh": "strong", "temp": "moderate"},
     },
     "Oriole Park at Camden Yards": {
         "lat": 39.2838, "lon": -76.6218, "cf_bearing": 30, "tz": "America/New_York",
-        "temp_b":  0.0211, "temp_t":  0.70,
-        "relh_b": -0.0208, "relh_t": -1.33,
-        "wind_b":  0.0216, "wind_t":  0.43,
+        "temp_b":  0.0261, "temp_t":  0.86,
+        "relh_b": -0.0201, "relh_t": -1.28,
+        "wind_b":  0.0421, "wind_t":  0.84,
+        "base_temp": 77.6, "base_relh": 55.1,
+        "confirmed": {},
     },
     "Nationals Park": {
-        "lat": 38.8730, "lon": -77.0074, "cf_bearing": 37, "tz": "America/New_York",
-        # cf_bearing corrected 2026-06-25: was 355° (N), should be ~37° (NNE).
-        # Confirmed ENE orientation from multiple sources. WIND SIGNAL ACTIVE (t=-1.95).
-        # ⚠ wind_b coefficient was fit on wrong bearing — sign may be unreliable.
-        # Refit regression before trusting wind signals at Nationals Park.
-        "temp_b":  0.0414, "temp_t":  1.46,
-        "relh_b":  0.0040, "relh_t":  0.24,
-        "wind_b": -0.0955, "wind_t": -1.95,
+        "lat": 38.8730, "lon": -77.0074, "cf_bearing": 355, "tz": "America/New_York",
+        "temp_b":  0.0467, "temp_t":  1.63,
+        "relh_b":  0.0008, "relh_t":  0.05,
+        "wind_b": -0.0813, "wind_t": -1.64,
+        "base_temp": 76.9, "base_relh": 54.7,
+        "confirmed": {"temp": "moderate", "wind": "moderate"},
+        "notes": "Wind-out → UNDER here is counterintuitive but held vs opener AND close; market moves it the wrong way.",
     },
     "Kauffman Stadium": {
         "lat": 39.0517, "lon": -94.4803, "cf_bearing": 10, "tz": "America/Chicago",
-        "temp_b": -0.0047, "temp_t": -0.17,
-        "relh_b":  0.0349, "relh_t":  1.92,
-        "wind_b":  0.1497, "wind_t":  1.66,
+        "temp_b":  0.0083, "temp_t":  0.29,
+        "relh_b":  0.0286, "relh_t":  1.56,
+        "wind_b":  0.1585, "wind_t":  1.75,
+        "base_temp": 78.1, "base_relh": 55.5,
+        "confirmed": {"relh": "moderate", "wind": "moderate"},
+        "notes": "Market moves the WRONG way on dry days here — edge grows toward close.",
     },
     "Truist Park": {
         "lat": 33.8908, "lon": -84.4678, "cf_bearing": 15, "tz": "America/New_York",
-        "temp_b":  0.0191, "temp_t":  0.53,
-        "relh_b":  0.0219, "relh_t":  1.13,
-        "wind_b": -0.0791, "wind_t": -1.21,
+        "temp_b":  0.0140, "temp_t":  0.39,
+        "relh_b":  0.0189, "relh_t":  0.97,
+        "wind_b": -0.0734, "wind_t": -1.11,
+        "base_temp": 78.7, "base_relh": 59.2,
+        "confirmed": {},
     },
     "Oracle Park": {
-        "lat": 37.7786, "lon": -122.3893, "cf_bearing": 44, "tz": "America/Los_Angeles",
-        # cf_bearing corrected 2026-06-25: was 315° (NW), should be ~44° (NE).
-        # Park was rotated 90° CW from original NW design to manage bay wind.
-        # wind_t=-0.54 (noise) — no active wind signal, bearing error was causing today's
-        # Giants game to show "IN" instead of "OUT" for WSW wind.
-        "temp_b":  0.0369, "temp_t":  0.53,
-        "relh_b": -0.0435, "relh_t": -1.56,
-        "wind_b": -0.0224, "wind_t": -0.54,
+        "lat": 37.7786, "lon": -122.3893, "cf_bearing": 315, "tz": "America/Los_Angeles",
+        "temp_b":  0.0342, "temp_t":  0.49,
+        "relh_b": -0.0452, "relh_t": -1.62,
+        "wind_b": -0.0169, "wind_t": -0.41,
+        "base_temp": 62.6, "base_relh": 66.8,
+        "confirmed": {"relh": "moderate"},
     },
     "Wrigley Field": {
-        "lat": 41.9484, "lon": -87.6553, "cf_bearing": 35, "tz": "America/Chicago",
-        # cf_bearing updated 2026-06-25: was 50° (NE), GPS calc suggests ~29°.
-        # Sources say "NE but further north than Rule 1.04" — estimated 35° as midpoint.
-        # WIND SIGNAL ACTIVE (t=2.27) — verify bearing precisely before full trust.
-        "temp_b": -0.0260, "temp_t": -1.08,
-        "relh_b":  0.0030, "relh_t":  0.16,
-        "wind_b":  0.0806, "wind_t":  2.27,
+        "lat": 41.9484, "lon": -87.6553, "cf_bearing": 50, "tz": "America/Chicago",
+        "temp_b":  0.0745, "temp_t":  1.13,
+        "relh_b":  0.0551, "relh_t":  1.05,
+        "wind_b":  0.1166, "wind_t":  1.20,
+        "base_temp": 69.2, "base_relh": 52.2,
+        "confirmed": {},
+        "notes": "Wrigley wind is real vs the CLOSE (t=2.27) but partially priced into openers — "
+                 "no confirmed opener edge. If betting wind here, you're racing the market, not beating the number.",
     },
     "Target Field": {
         "lat": 44.9817, "lon": -93.2781, "cf_bearing": 5, "tz": "America/Chicago",
-        "temp_b":  0.0349, "temp_t":  1.43,
-        "relh_b":  0.0437, "relh_t":  2.27,
-        "wind_b":  0.0114, "wind_t":  0.27,
+        "temp_b":  0.0431, "temp_t":  1.77,
+        "relh_b":  0.0426, "relh_t":  2.23,
+        "wind_b":  0.0137, "wind_t":  0.33,
+        "base_temp": 72.2, "base_relh": 48.6,
+        "confirmed": {"relh": "strong", "temp": "moderate"},
     },
     "T-Mobile Park": {
-        "lat": 47.5914, "lon": -122.3325, "cf_bearing": 30, "tz": "America/Los_Angeles",
-        # cf_bearing corrected 2026-06-25: was 345° (NNW), should be ~30° (NNE).
-        # Confirmed NE orientation; sun rises over CF wall. WIND SIGNAL ACTIVE (t=-1.18).
-        # ⚠ wind_b coefficient was fit on wrong bearing — refit before trusting wind signals.
-        "temp_b":  0.0431, "temp_t":  1.24,
-        "relh_b":  0.0299, "relh_t":  1.14,
-        "wind_b": -0.0774, "wind_t": -1.18,
+        "lat": 47.5914, "lon": -122.3325, "cf_bearing": 345, "tz": "America/Los_Angeles",
+        "temp_b":  0.0480, "temp_t":  1.39,
+        "relh_b":  0.0326, "relh_t":  1.25,
+        "wind_b": -0.0727, "wind_t": -1.11,
+        "base_temp": 66.5, "base_relh": 48.3,
+        "confirmed": {},
     },
     "Rogers Centre": {
         "lat": 43.6414, "lon": -79.3894, "cf_bearing": 355, "tz": "America/Toronto",
-        "temp_b":  0.0075, "temp_t":  0.12,
-        "relh_b":  0.0151, "relh_t":  0.60,
-        "wind_b":  0.0940, "wind_t":  2.16,
+        "temp_b":  0.0004, "temp_t":  0.01,
+        "relh_b":  0.0106, "relh_t":  0.42,
+        "wind_b":  0.0939, "wind_t":  2.16,
+        "base_temp": 71.1, "base_relh": 52.2,
+        "confirmed": {"wind": "strong"},
         "notes": "",
     },
     "PNC Park": {
         "lat": 40.4469, "lon": -80.0057, "cf_bearing": 30, "tz": "America/New_York",
-        "temp_b":  0.0347, "temp_t":  1.28,
-        "relh_b": -0.0026, "relh_t": -0.15,
-        "wind_b":  0.0428, "wind_t":  0.91,
+        "temp_b":  0.0414, "temp_t":  1.53,
+        "relh_b": -0.0054, "relh_t": -0.32,
+        "wind_b":  0.0568, "wind_t":  1.21,
+        "base_temp": 73.9, "base_relh": 51.9,
+        "confirmed": {"temp": "moderate"},
     },
     "Comerica Park": {
-        "lat": 42.3390, "lon": -83.0485, "cf_bearing": 172, "tz": "America/Detroit",
-        # cf_bearing corrected 2026-06-25: was 355° (N), should be ~172° (S).
-        # Comerica is the MOST SOUTHWARD park in MLB — batter faces south, CF is to south.
-        # wind_t=-0.52 (noise) — no active wind signal. Major error but low practical impact.
-        "temp_b":  0.0285, "temp_t":  1.09,
-        "relh_b":  0.0031, "relh_t":  0.18,
-        "wind_b": -0.0200, "wind_t": -0.52,
+        "lat": 42.3390, "lon": -83.0485, "cf_bearing": 355, "tz": "America/Detroit",
+        "temp_b":  0.0263, "temp_t":  0.99,
+        "relh_b":  0.0046, "relh_t":  0.25,
+        "wind_b": -0.0126, "wind_t": -0.32,
+        "base_temp": 72.5, "base_relh": 54.5,
+        "confirmed": {},
     },
     "Great American Ball Park": {
         "lat": 39.0979, "lon": -84.5079, "cf_bearing": 350, "tz": "America/New_York",
-        "temp_b": -0.0067, "temp_t": -0.24,
-        "relh_b":  0.0034, "relh_t":  0.20,
-        "wind_b":  0.0778, "wind_t":  1.45,
-        "notes": "GABP: humidity signals unreliable (possibly mispriced baseline). Wind signal only.",
+        "temp_b": -0.0033, "temp_t": -0.12,
+        "relh_b":  0.0014, "relh_t":  0.08,
+        "wind_b":  0.0805, "wind_t":  1.48,
+        "base_temp": 76.7, "base_relh": 57.9,
+        "confirmed": {},
+        "notes": "GABP: historically suspicious park (always-Over baseline mispricing). Wind t=1.48 just under threshold — no confirmed edge.",
     },
     "American Family Field": {
         "lat": 43.0280, "lon": -87.9712, "cf_bearing": 15, "tz": "America/Chicago",
-        "temp_b":  0.0505, "temp_t":  1.03,
-        "relh_b":  0.0130, "relh_t":  0.54,
-        "wind_b": -0.0744, "wind_t": -1.12,
+        "temp_b":  0.0627, "temp_t":  1.27,
+        "relh_b":  0.0135, "relh_t":  0.57,
+        "wind_b": -0.0739, "wind_t": -1.11,
+        "base_temp": 76.4, "base_relh": 58.6,
+        "confirmed": {},
     },
     "Dodger Stadium": {
         "lat": 34.0739, "lon": -118.2400, "cf_bearing": 30, "tz": "America/Los_Angeles",
-        "temp_b": -0.0536, "temp_t": -1.24,
-        "relh_b": -0.0128, "relh_t": -0.53,
-        "wind_b":  0.0575, "wind_t":  0.73,
+        "temp_b": -0.0548, "temp_t": -1.26,
+        "relh_b": -0.0160, "relh_t": -0.65,
+        "wind_b":  0.0531, "wind_t":  0.68,
+        "base_temp": 71.4, "base_relh": 54.4,
+        "confirmed": {},
     },
     "Citizens Bank Park": {
         "lat": 39.9061, "lon": -75.1665, "cf_bearing": 15, "tz": "America/New_York",
-        "temp_b": -0.0221, "temp_t": -0.72,
-        "relh_b":  0.0139, "relh_t":  0.86,
-        "wind_b": -0.0534, "wind_t": -1.34,
+        "temp_b": -0.0187, "temp_t": -0.60,
+        "relh_b":  0.0123, "relh_t":  0.76,
+        "wind_b": -0.0316, "wind_t": -0.79,
+        "base_temp": 75.5, "base_relh": 54.7,
+        "confirmed": {},
     },
     "Coors Field": {
         "lat": 39.7559, "lon": -104.9942, "cf_bearing": 350, "tz": "America/Denver",
-        "temp_b":  0.0288, "temp_t":  0.88,
-        "relh_b":  0.0101, "relh_t":  0.44,
-        "wind_b":  0.0394, "wind_t":  0.61,
+        "temp_b":  0.0302, "temp_t":  0.92,
+        "relh_b":  0.0052, "relh_t":  0.22,
+        "wind_b":  0.0407, "wind_t":  0.62,
+        "base_temp": 75.4, "base_relh": 33.7,
+        "confirmed": {},
     },
     "Progressive Field": {
         "lat": 41.4962, "lon": -81.6852, "cf_bearing": 5, "tz": "America/New_York",
-        "temp_b":  0.0272, "temp_t":  1.10,
-        "relh_b":  0.0097, "relh_t":  0.53,
-        "wind_b":  0.0028, "wind_t":  0.06,
+        "temp_b":  0.0268, "temp_t":  1.09,
+        "relh_b":  0.0068, "relh_t":  0.37,
+        "wind_b":  0.0167, "wind_t":  0.37,
+        "base_temp": 71.4, "base_relh": 55.0,
+        "confirmed": {},
     },
     "Petco Park": {
-        "lat": 32.7076, "lon": -117.1570, "cf_bearing": 358, "tz": "America/Los_Angeles",
-        # cf_bearing corrected 2026-06-25: was 320° (NW), should be ~358° (due N).
-        # Multiple sources confirm batter faces north, CF due north. wind_t=-0.08 (noise).
-        "temp_b":  0.0296, "temp_t":  0.64,
-        "relh_b": -0.0037, "relh_t": -0.12,
-        "wind_b": -0.0098, "wind_t": -0.08,
+        "lat": 32.7076, "lon": -117.1570, "cf_bearing": 320, "tz": "America/Los_Angeles",
+        "temp_b":  0.0267, "temp_t":  0.58,
+        "relh_b": -0.0017, "relh_t": -0.05,
+        "wind_b": -0.0070, "wind_t": -0.06,
+        "base_temp": 68.3, "base_relh": 69.2,
+        "confirmed": {},
+    },
+    "Angel Stadium": {
+        "lat": 33.8003, "lon": -117.8827, "cf_bearing": 65, "tz": "America/Los_Angeles",
+        "temp_b": -0.0186, "temp_t": -0.40,
+        "relh_b": -0.0265, "relh_t": -0.84,
+        "wind_b":  0.0414, "wind_t":  0.51,
+        "base_temp": 73.9, "base_relh": 63.1,
+        "confirmed": {},
+    },
+    "Busch Stadium": {
+        "lat": 38.6226, "lon": -90.1928, "cf_bearing": 60, "tz": "America/Chicago",
+        "temp_b":  0.0089, "temp_t":  0.31,
+        "relh_b": -0.0140, "relh_t": -0.72,
+        "wind_b":  0.0020, "wind_t":  0.05,
+        "base_temp": 78.4, "base_relh": 51.2,
+        "confirmed": {},
+    },
+    "Guaranteed Rate Field": {
+        "lat": 41.8299, "lon": -87.6338, "cf_bearing": 125, "tz": "America/Chicago",
+        "temp_b": -0.0011, "temp_t": -0.03,
+        "relh_b":  0.0144, "relh_t":  0.63,
+        "wind_b":  0.0125, "wind_t":  0.25,
+        "base_temp": 71.8, "base_relh": 51.7,
+        "confirmed": {},
     },
     # A's relocated to Sacramento in 2025 — not yet in regression model (insufficient sample)
     "Sutter Health Park": {
@@ -183,6 +253,8 @@ PARKS = {
         "temp_b": 0.0, "temp_t": 0.0,
         "relh_b": 0.0, "relh_t": 0.0,
         "wind_b": 0.0, "wind_t": 0.0,
+        "base_temp": 75.0, "base_relh": 50.0,
+        "confirmed": {},
         "notes": "⚾ SACRAMENTOVERS: Sutter Health Park showed a strong unconditional Over lean in 2025 "
                  "(FG Over 54% W/L, F5 Over 61% W/L). Weather model not yet validated — insufficient sample. "
                  "Treat any sharp Over signal here as reinforced by park factor.",
@@ -361,6 +433,103 @@ def compass(deg):
             "S","SSW","SW","WSW","W","WNW","NW","NNW"]
     return dirs[round(deg / 22.5) % 16]
 
+# ── Market totals (The Odds API) ──────────────────────────────────────────────
+# Optional: requires ODDS_API_KEY env var (GitHub Actions secret).
+# ~1 request per run against a 500/month quota. Missing key → totals skipped,
+# tool still shows run adjustments.
+
+def fetch_market_totals():
+    """Return {(home_name, away_name, utc_date): median total across books}."""
+    api_key = os.environ.get("ODDS_API_KEY", "").strip()
+    if not api_key:
+        print("  ODDS_API_KEY not set — skipping market totals", file=sys.stderr)
+        return {}
+    try:
+        r = requests.get(
+            "https://api.the-odds-api.com/v4/sports/baseball_mlb/odds",
+            timeout=25,
+            params={"apiKey": api_key, "regions": "us",
+                    "markets": "totals", "oddsFormat": "american"},
+        )
+        r.raise_for_status()
+        events = r.json()
+        remaining = r.headers.get("x-requests-remaining")
+        if remaining is not None:
+            print(f"  Odds API requests remaining this month: {remaining}")
+    except Exception as e:
+        print(f"  Odds API fetch error: {e}", file=sys.stderr)
+        return {}
+
+    totals = {}
+    for ev in events:
+        home, away = ev.get("home_team"), ev.get("away_team")
+        utc_date = (ev.get("commence_time") or "")[:10]
+        points = []
+        for bk in ev.get("bookmakers", []):
+            for mkt in bk.get("markets", []):
+                if mkt.get("key") != "totals":
+                    continue
+                for oc in mkt.get("outcomes", []):
+                    p = oc.get("point")
+                    if p is not None and oc.get("name") == "Over":
+                        points.append(float(p))
+        if home and away and points:
+            points.sort()
+            mid = len(points) // 2
+            med = points[mid] if len(points) % 2 else (points[mid-1] + points[mid]) / 2
+            totals[(home, away, utc_date)] = med
+    print(f"  Market totals loaded for {len(totals)} game(s)")
+    return totals
+
+
+def lookup_market_total(totals, home, away, game_dt_str):
+    """Match by team names + UTC date, with a ±1 day fallback for late games."""
+    if not totals:
+        return None
+    utc_date = (game_dt_str or "")[:10]
+    for d_off in (0, 1, -1):
+        if utc_date:
+            try:
+                d = (datetime.date.fromisoformat(utc_date)
+                     + datetime.timedelta(days=d_off)).isoformat()
+            except ValueError:
+                d = utc_date
+            v = totals.get((home, away, d))
+            if v is not None:
+                return v
+    return None
+
+# ── Totals origination ────────────────────────────────────────────────────────
+# adj = Σ β × (forecast condition − park baseline), per factor.
+# adj_conf (confirmed factors only) drives flags; adj_all is informational.
+# fair total = market total + adj_conf.
+
+EDGE_THRESHOLD_RUNS = 0.5
+
+def originate(park, temp, relh, wind_eff):
+    if park is None:
+        return None
+    contribs = {}
+    if temp is not None:
+        contribs["temp"] = park["temp_b"] * (temp - park["base_temp"])
+    if relh is not None:
+        contribs["relh"] = park["relh_b"] * (relh - park["base_relh"])
+    if wind_eff is not None:
+        contribs["wind"] = park["wind_b"] * wind_eff  # baseline 0 = calm/cross
+    confirmed = park.get("confirmed", {})
+    adj_all = sum(contribs.values())
+    adj_conf = sum(v for f, v in contribs.items() if f in confirmed)
+    strongest = max((confirmed[f] for f in confirmed if f in contribs), default=None,
+                    key=lambda s: {"moderate": 1, "strong": 2}.get(s, 0))
+    return {
+        "contribs": contribs,
+        "adj_all": adj_all,
+        "adj_conf": adj_conf,
+        "confirmed": confirmed,
+        "flag": abs(adj_conf) >= EDGE_THRESHOLD_RUNS,
+        "tier": strongest,
+    }
+
 # ── Signal detection ──────────────────────────────────────────────────────────
 # Threshold philosophy:
 #   TEMP:     extreme ends of the temp distribution at each park
@@ -454,9 +623,13 @@ def render_card(card):
     notes      = card.get("notes", "")
 
     direction, strength, net_score = net_signal(signals)
+    orig = card.get("orig")
+    market_total = card.get("market_total")
 
-    # Card accent color based on net direction
-    if direction == "OVER":
+    # Card accent color: originated edge takes priority, then bucket signals
+    if orig and orig["flag"]:
+        accent = "#198754" if orig["adj_conf"] > 0 else "#dc3545"
+    elif direction == "OVER":
         accent = "#198754"   # green
     elif direction == "UNDER":
         accent = "#dc3545"   # red
@@ -484,10 +657,11 @@ def render_card(card):
     elif r_status == "likely_closed":
         roof_html = ('<div class="mt-1"><span class="badge text-bg-secondary" style="font-size:0.78rem">'
                      '🏟 Roof likely CLOSED — signals may not apply</span></div>')
-        # suppress signals — roof closed makes weather irrelevant
+        # suppress signals AND origination — roof closed makes weather irrelevant
         signals = []
         direction, strength, net_score = None, None, 0
         accent = "#adb5bd"
+        orig = None
     elif r_status == "uncertain":
         roof_html = ('<div class="mt-1"><span class="badge text-bg-warning text-dark" style="font-size:0.78rem">'
                      '🏟 Roof status uncertain — verify before betting</span></div>')
@@ -527,6 +701,42 @@ def render_card(card):
     else:
         wx_line = "<em class='text-muted'>weather unavailable</em>"
 
+    # ── Origination block (v2): fair number vs market ─────────────────────────
+    orig_html = ""
+    if orig is not None and not card.get("dome"):
+        fct_names = {"temp": "temp", "relh": "humidity", "wind": "wind"}
+        parts = []
+        for f, v in orig["contribs"].items():
+            if abs(v) < 0.05:
+                continue
+            tag = orig["confirmed"].get(f)
+            star = "★★★" if tag == "strong" else "★★" if tag == "moderate" else ""
+            mark = f"{star} " if star else ""
+            parts.append(f"{mark}{fct_names[f]} {v:+.2f}")
+        breakdown = " · ".join(parts) if parts else "conditions ≈ park average"
+
+        if orig["flag"]:
+            lean = "OVER" if orig["adj_conf"] > 0 else "UNDER"
+            badge_cls = "text-bg-success" if lean == "OVER" else "text-bg-danger"
+            tier_lbl = "★★★" if orig["tier"] == "strong" else "★★"
+            if market_total is not None:
+                fair = market_total + orig["adj_conf"]
+                edge_txt = (f"🎯 {lean} {market_total:g} &nbsp;·&nbsp; "
+                            f"fair {fair:.1f} ({orig['adj_conf']:+.1f} runs) {tier_lbl}")
+            else:
+                edge_txt = f"🎯 {lean} lean {orig['adj_conf']:+.1f} runs vs opener {tier_lbl}"
+            orig_html = (f'<div class="mt-1"><span class="badge {badge_cls}" '
+                         f'style="font-size:0.88rem">{edge_txt}</span>'
+                         f'<div class="text-muted" style="font-size:0.74rem">{breakdown}'
+                         + (f' · full model {orig["adj_all"]:+.2f}' if abs(orig["adj_all"] - orig["adj_conf"]) >= 0.1 else "")
+                         + '</div></div>')
+        else:
+            mkt_str = f"market {market_total:g} · " if market_total is not None else ""
+            orig_html = (f'<div class="text-muted mt-1" style="font-size:0.76rem">'
+                         f'{mkt_str}confirmed adj {orig["adj_conf"]:+.2f} runs'
+                         + (f' · full model {orig["adj_all"]:+.2f}' if abs(orig["adj_all"] - orig["adj_conf"]) >= 0.1 else "")
+                         + f' · {breakdown}</div>')
+
     # Net signal headline
     if direction == "OVER":
         headline = (f'<span class="badge text-bg-success" style="font-size:0.85rem">'
@@ -563,6 +773,7 @@ def render_card(card):
       </div>
       <div class="mt-1" style="font-size:0.82rem">{wx_line}</div>
       {roof_html}
+      {orig_html}
       <div class="mt-1">{headline}</div>
       {detail_html}
       {notes_html}
@@ -579,8 +790,18 @@ def generate_html(cards, generated_at):
     day1 = seen[0] if len(seen) > 0 else "Day 1"
     day2 = seen[1] if len(seen) > 1 else "Day 2"
 
-    flagged_today    = sum(1 for c in cards if c["signals"] and c.get("is_first"))
-    flagged_tomorrow = sum(1 for c in cards if c["signals"] and not c.get("is_first"))
+    def card_flagged(c):
+        """Originated-edge flag, honoring roof suppression for retractable parks."""
+        orig = c.get("orig")
+        if not (orig and orig["flag"]):
+            return False
+        if c["venue"] in RETRACTABLE_ROOF_PARKS:
+            if roof_status(c.get("temp"), c.get("precip_prob")) == "likely_closed":
+                return False
+        return True
+
+    flagged_today    = sum(1 for c in cards if card_flagged(c) and c.get("is_first"))
+    flagged_tomorrow = sum(1 for c in cards if card_flagged(c) and not c.get("is_first"))
     total_today      = sum(1 for c in cards if c.get("is_first"))
     total_tomorrow   = sum(1 for c in cards if not c.get("is_first"))
     gen_central = generated_at.astimezone(ZoneInfo("America/Chicago"))
@@ -609,24 +830,27 @@ def generate_html(cards, generated_at):
 <body>
 <div class="container py-3" style="max-width: 620px">
 
-  <h5 class="mb-1">⚾ MLB Weather Flags</h5>
+  <h5 class="mb-1">⚾ MLB Weather Totals — Origination</h5>
   <div class="text-muted mb-2" style="font-size:0.78rem">
     Updated: {gen_str}<br>
     {day1}: <strong>{flagged_today}</strong>/{total_today} flagged &nbsp;·&nbsp;
     {day2}: <strong>{flagged_tomorrow}</strong>/{total_tomorrow} flagged
   </div>
   <div class="alert alert-secondary py-1 px-2 mb-3" style="font-size:0.75rem">
-    ⚠️ Weather signals are <strong>confirmatory only</strong> — layer on top of
-    a sharp-money signal. Never bet weather alone.<br>
-    ★★★ Strong &nbsp;·&nbsp; ★★ Moderate &nbsp;·&nbsp; ★ Weak &nbsp;·&nbsp;
-    ↔ Mixed = signals conflict, skip
+    🎯 = originated edge ≥ {EDGE_THRESHOLD_RUNS} runs vs the opener, from factors with
+    historical vs-opener evidence at that park (★★★ t≥2.0 · ★★ t≥1.5).<br>
+    Temp/wind edges get priced by close — <strong>bet early</strong>. Humidity edges are
+    never priced — timing flexible.<br>
+    ⚠️ Best used alongside the sharp-money process; model is 2023–2025 in-sample,
+    not yet walk-forward validated.
   </div>
 
   {card_html}
 
   <div class="text-muted text-center mt-3" style="font-size:0.72rem">
-    Model: per-park OLS (gap ~ temp + relh + eff_wind) · 5,393 games 2023–2025<br>
-    CF bearings approximate · Retractable roof status estimated from temp/precip conditions
+    Model v2: per-park OLS vs OPENING line (gap_open ~ temp + relh + eff_wind) · 5,393 games 2023–2025<br>
+    fair total = market + Σ β×(forecast − park baseline), confirmed factors only<br>
+    CF bearings approximate · Roof status estimated from temp/precip · Totals: The Odds API (median across books)
   </div>
 </div>
 </body>
@@ -639,9 +863,10 @@ def main():
     today   = now_utc.astimezone(ZoneInfo("America/Chicago")).date()
     tomorrow = today + datetime.timedelta(days=1)
 
-    print(f"MLB Weather Flag Tool — {now_utc.strftime('%Y-%m-%d %H:%M UTC')}")
+    print(f"MLB Weather Flag Tool v2 (origination) — {now_utc.strftime('%Y-%m-%d %H:%M UTC')}")
     print(f"Running for: {today.strftime('%A %Y-%m-%d')}  {tomorrow.strftime('%A %Y-%m-%d')}\n")
 
+    market_totals = fetch_market_totals()
     all_cards = []
 
     for is_first, date_obj in [(True, today), (False, tomorrow)]:
@@ -664,6 +889,7 @@ def main():
                 "wind_dir": None, "wind_eff": 0.0, "game_local": None,
                 "precip_prob": None,
                 "signals": [],
+                "orig": None, "market_total": None,
                 "notes": park.get("notes", "") if park else "",
             }
 
@@ -679,30 +905,38 @@ def main():
                     precip_prob = wx.get("precip_prob")
                     we         = calc_eff_wind(wspd, wdir, park["cf_bearing"])
 
+                    orig = originate(park, temp, relh, we)
+                    mkt = lookup_market_total(market_totals, game["home"],
+                                              game["away"], game["game_dt_str"])
                     card.update({
                         "temp": temp, "relh": relh,
                         "wind_speed": wspd, "wind_dir": wdir,
                         "wind_eff": we, "game_local": game_local,
                         "precip_prob": precip_prob,
                         "signals": detect_signals(park, temp, relh, we),
+                        "orig": orig, "market_total": mkt,
                     })
-                    flag = "✓" if card["signals"] else "·"
-                    sig_str = " | ".join(f"{s[2]} ({s[0].lower()}, t={s[1]:.1f})"
-                                        for s in card["signals"])
+                    flag = "🎯" if (orig and orig["flag"]) else ("✓" if card["signals"] else "·")
+                    orig_str = ""
+                    if orig and orig["flag"]:
+                        lean = "OVER" if orig["adj_conf"] > 0 else "UNDER"
+                        mkt_s = f" vs mkt {mkt:g}" if mkt is not None else ""
+                        orig_str = f"  ⇒ {lean} {orig['adj_conf']:+.2f}r{mkt_s}"
                     print(f"  {flag} {game['away'][:3]}@{game['home'][:3]}"
-                          f"  {temp:.0f}°F  {relh:.0f}%RH  {we:+.1f}mph"
-                          + (f"  → {sig_str}" if sig_str else ""))
+                          f"  {temp:.0f}°F  {relh:.0f}%RH  {we:+.1f}mph{orig_str}")
             else:
                 print(f"  · {game['away'][:3]}@{game['home'][:3]}"
                       f"  {venue} (not in model)")
 
             all_cards.append(card)
 
-    # Sort: flagged games first (by total |t| weight), then by game time
+    # Sort: originated edges first (by |edge|), then bucket-flagged, then time
     def sort_key(c):
+        orig = c.get("orig")
+        edge = abs(orig["adj_conf"]) if (orig and orig["flag"]) else 0.0
         sig_score = sum(s[1] for s in c["signals"])
         gt = c["game_local"].timestamp() if c["game_local"] else 9e9
-        return (-sig_score, gt)
+        return (-edge, -sig_score, gt)
 
     all_cards.sort(key=sort_key)
 
@@ -711,8 +945,8 @@ def main():
     with open("docs/index.html", "w", encoding="utf-8") as f:
         f.write(html)
 
-    flagged = sum(1 for c in all_cards if c["signals"])
-    print(f"\nOutput: docs/index.html  ({len(all_cards)} games, {flagged} flagged)")
+    flagged = sum(1 for c in all_cards if c.get("orig") and c["orig"]["flag"])
+    print(f"\nOutput: docs/index.html  ({len(all_cards)} games, {flagged} originated edge(s))")
 
 
 if __name__ == "__main__":
