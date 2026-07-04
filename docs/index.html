@@ -19,35 +19,22 @@
 <body>
 <div class="container py-3" style="max-width: 620px">
 
-  <h5 class="mb-1">⚾ MLB Weather Flags</h5>
+  <h5 class="mb-1">⚾ MLB Weather Totals — Origination</h5>
   <div class="text-muted mb-2" style="font-size:0.78rem">
-    Updated: Jul 4, 2026 · 3:12 AM CDT<br>
-    Sunday: <strong>4</strong>/15 flagged &nbsp;·&nbsp;
-    Saturday: <strong>3</strong>/15 flagged
+    Updated: Jul 4, 2026 · 9:04 AM CDT<br>
+    Saturday: <strong>2</strong>/15 flagged &nbsp;·&nbsp;
+    Sunday: <strong>2</strong>/15 flagged
   </div>
   <div class="alert alert-secondary py-1 px-2 mb-3" style="font-size:0.75rem">
-    ⚠️ Weather signals are <strong>confirmatory only</strong> — layer on top of
-    a sharp-money signal. Never bet weather alone.<br>
-    ★★★ Strong &nbsp;·&nbsp; ★★ Moderate &nbsp;·&nbsp; ★ Weak &nbsp;·&nbsp;
-    ↔ Mixed = signals conflict, skip
+    🎯 = originated edge ≥ 0.5 runs vs the opener, from factors with
+    historical vs-opener evidence at that park (★★★ t≥2.0 · ★★ t≥1.5).<br>
+    Temp/wind edges get priced by close — <strong>bet early</strong>. Humidity edges are
+    never priced — timing flexible.<br>
+    ⚠️ Best used alongside the sharp-money process; model is 2023–2025 in-sample,
+    not yet walk-forward validated.
   </div>
 
   
-  <div class="card mb-2" style="border-left: 4px solid #dc3545; border-radius: 6px">
-    <div class="card-body py-2 px-3">
-      <div class="d-flex justify-content-between align-items-start">
-        <div>
-          <strong style="font-size:0.95rem">Philadelphia Phillies @ Kansas City Royals</strong><span class="badge text-bg-secondary ms-1">Sunday</span>
-          <div class="text-muted" style="font-size:0.8rem">Kauffman Stadium · 2:00 PM CDT</div>
-        </div>
-      </div>
-      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;93°F &nbsp;·&nbsp; 💧&nbsp;31% <span class="badge text-bg-warning">DRY</span> &nbsp;·&nbsp; 🌬&nbsp;10&nbsp;mph&nbsp;NNW <span class="badge text-bg-warning">IN&nbsp;8</span></div>
-      
-      <div class="mt-1"><span class="badge text-bg-danger" style="font-size:0.85rem">⬇ UNDER lean &nbsp; ★★★ Strong</span></div>
-      <ul class="mb-0 ps-3 mt-1"><li style="font-size:0.78rem">★★ Dry (31% RH) → ⬇ UNDER (humidity)</li><li style="font-size:0.78rem">★★ In 8 mph → ⬇ UNDER (wind)</li></ul>
-      
-    </div>
-  </div>
   <div class="card mb-2" style="border-left: 4px solid #198754; border-radius: 6px">
     <div class="card-body py-2 px-3">
       <div class="d-flex justify-content-between align-items-start">
@@ -56,25 +43,11 @@
           <div class="text-muted" style="font-size:0.8rem">Yankee Stadium · 1:35 PM EDT</div>
         </div>
       </div>
-      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;98°F &nbsp;·&nbsp; 💧&nbsp;38% <span class="badge text-bg-warning">DRY</span> &nbsp;·&nbsp; 🌬&nbsp;11&nbsp;mph&nbsp;W</div>
+      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;98°F &nbsp;·&nbsp; 💧&nbsp;35% <span class="badge text-bg-warning">DRY</span> &nbsp;·&nbsp; 🌬&nbsp;10&nbsp;mph&nbsp;WNW</div>
       
+      <div class="mt-1"><span class="badge text-bg-success" style="font-size:0.88rem">🎯 OVER 10 &nbsp;·&nbsp; fair 11.5 (+1.5 runs) ★★★</span><div class="text-muted" style="font-size:0.74rem">★★★ temp +1.49 · wind -0.10 · full model +1.36</div></div>
       <div class="mt-1"><span class="badge text-bg-success" style="font-size:0.85rem">⬆ OVER lean &nbsp; ★★ Moderate</span></div>
-      <ul class="mb-0 ps-3 mt-1"><li style="font-size:0.78rem">★★ Warm (98°F) → ⬆ OVER (temp)</li></ul>
-      
-    </div>
-  </div>
-  <div class="card mb-2" style="border-left: 4px solid #198754; border-radius: 6px">
-    <div class="card-body py-2 px-3">
-      <div class="d-flex justify-content-between align-items-start">
-        <div>
-          <strong style="font-size:0.95rem">Philadelphia Phillies @ Kansas City Royals</strong><span class="badge text-bg-primary ms-1">Saturday</span>
-          <div class="text-muted" style="font-size:0.8rem">Kauffman Stadium · 7:10 PM CDT</div>
-        </div>
-      </div>
-      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;82°F &nbsp;·&nbsp; 💧&nbsp;57% &nbsp;·&nbsp; 🌬&nbsp;10&nbsp;mph&nbsp;WSW <span class="badge text-bg-warning">OUT&nbsp;7</span></div>
-      
-      <div class="mt-1"><span class="badge text-bg-success" style="font-size:0.85rem">⬆ OVER lean &nbsp; ★★ Moderate</span></div>
-      <ul class="mb-0 ps-3 mt-1"><li style="font-size:0.78rem">★★ Out 7 mph → ⬆ OVER (wind)</li></ul>
+      <ul class="mb-0 ps-3 mt-1"><li style="font-size:0.78rem">★★★ Warm (98°F) → ⬆ OVER (temp)</li></ul>
       
     </div>
   </div>
@@ -86,10 +59,27 @@
           <div class="text-muted" style="font-size:0.8rem">Nationals Park · 11:05 AM EDT</div>
         </div>
       </div>
-      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;96°F &nbsp;·&nbsp; 💧&nbsp;43% &nbsp;·&nbsp; 🌬&nbsp;2&nbsp;mph&nbsp;W</div>
+      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;96°F &nbsp;·&nbsp; 💧&nbsp;39% <span class="badge text-bg-warning">DRY</span> &nbsp;·&nbsp; 🌬&nbsp;5&nbsp;mph&nbsp;NW</div>
       
-      <div class="mt-1"><span class="badge text-bg-success" style="font-size:0.85rem">⬆ OVER lean &nbsp; ★ Weak</span></div>
-      <ul class="mb-0 ps-3 mt-1"><li style="font-size:0.78rem">★ Warm (96°F) → ⬆ OVER (temp)</li></ul>
+      <div class="mt-1"><span class="badge text-bg-success" style="font-size:0.88rem">🎯 OVER 10.5 &nbsp;·&nbsp; fair 11.7 (+1.2 runs) ★★</span><div class="text-muted" style="font-size:0.74rem">★★ temp +0.92 · ★★ wind +0.30</div></div>
+      <div class="mt-1"><span class="badge text-bg-success" style="font-size:0.85rem">⬆ OVER lean &nbsp; ★★ Moderate</span></div>
+      <ul class="mb-0 ps-3 mt-1"><li style="font-size:0.78rem">★★ Warm (96°F) → ⬆ OVER (temp)</li></ul>
+      <div class="text-muted mt-1" style="font-size:0.75rem">⚠️ Wind-out → UNDER here is counterintuitive but held vs opener AND close; market moves it the wrong way.</div>
+    </div>
+  </div>
+  <div class="card mb-2" style="border-left: 4px solid #198754; border-radius: 6px">
+    <div class="card-body py-2 px-3">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <strong style="font-size:0.95rem">Minnesota Twins @ New York Yankees</strong><span class="badge text-bg-secondary ms-1">Sunday</span>
+          <div class="text-muted" style="font-size:0.8rem">Yankee Stadium · 1:35 PM EDT</div>
+        </div>
+      </div>
+      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;90°F &nbsp;·&nbsp; 💧&nbsp;50% &nbsp;·&nbsp; 🌬&nbsp;5&nbsp;mph&nbsp;ESE</div>
+      
+      <div class="mt-1"><span class="badge text-bg-success" style="font-size:0.88rem">🎯 OVER 10 &nbsp;·&nbsp; fair 11.0 (+1.0 runs) ★★★</span><div class="text-muted" style="font-size:0.74rem">★★★ temp +1.00 · wind +0.07</div></div>
+      <div class="mt-1"><span class="badge text-bg-success" style="font-size:0.85rem">⬆ OVER lean &nbsp; ★★ Moderate</span></div>
+      <ul class="mb-0 ps-3 mt-1"><li style="font-size:0.78rem">★★★ Warm (90°F) → ⬆ OVER (temp)</li></ul>
       
     </div>
   </div>
@@ -101,10 +91,27 @@
           <div class="text-muted" style="font-size:0.8rem">Nationals Park · 1:00 PM EDT</div>
         </div>
       </div>
-      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;96°F &nbsp;·&nbsp; 💧&nbsp;44% &nbsp;·&nbsp; 🌬&nbsp;2&nbsp;mph&nbsp;SE</div>
+      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;96°F &nbsp;·&nbsp; 💧&nbsp;43% &nbsp;·&nbsp; 🌬&nbsp;2&nbsp;mph&nbsp;WNW</div>
       
+      <div class="mt-1"><span class="badge text-bg-success" style="font-size:0.88rem">🎯 OVER 10.5 &nbsp;·&nbsp; fair 11.5 (+1.0 runs) ★★</span><div class="text-muted" style="font-size:0.74rem">★★ temp +0.90 · ★★ wind +0.08</div></div>
+      <div class="mt-1"><span class="badge text-bg-success" style="font-size:0.85rem">⬆ OVER lean &nbsp; ★★ Moderate</span></div>
+      <ul class="mb-0 ps-3 mt-1"><li style="font-size:0.78rem">★★ Warm (96°F) → ⬆ OVER (temp)</li></ul>
+      <div class="text-muted mt-1" style="font-size:0.75rem">⚠️ Wind-out → UNDER here is counterintuitive but held vs opener AND close; market moves it the wrong way.</div>
+    </div>
+  </div>
+  <div class="card mb-2" style="border-left: 4px solid #198754; border-radius: 6px">
+    <div class="card-body py-2 px-3">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <strong style="font-size:0.95rem">Toronto Blue Jays @ Seattle Mariners</strong><span class="badge text-bg-primary ms-1">Saturday</span>
+          <div class="text-muted" style="font-size:0.8rem">T-Mobile Park · 1:10 PM PDT</div>
+        </div>
+      </div>
+      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;64°F &nbsp;·&nbsp; 💧&nbsp;77% <span class="badge text-bg-info">HUMID</span> &nbsp;·&nbsp; 🌬&nbsp;2&nbsp;mph&nbsp;NNW</div>
+      <div class="mt-1"><span class="badge text-bg-warning text-dark" style="font-size:0.78rem">🏟 Roof status uncertain — verify before betting</span></div>
+      <div class="text-muted mt-1" style="font-size:0.76rem">market 7.5 · confirmed adj +0.00 runs · full model +0.93 · temp -0.12 · humidity +0.94 · wind +0.12</div>
       <div class="mt-1"><span class="badge text-bg-success" style="font-size:0.85rem">⬆ OVER lean &nbsp; ★ Weak</span></div>
-      <ul class="mb-0 ps-3 mt-1"><li style="font-size:0.78rem">★ Warm (96°F) → ⬆ OVER (temp)</li></ul>
+      <ul class="mb-0 ps-3 mt-1"><li style="font-size:0.78rem">★ Humid (77% RH) → ⬆ OVER (humidity)</li></ul>
       
     </div>
   </div>
@@ -116,41 +123,60 @@
           <div class="text-muted" style="font-size:0.8rem">T-Mobile Park · 2:00 PM PDT</div>
         </div>
       </div>
-      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;71°F &nbsp;·&nbsp; 💧&nbsp;51% &nbsp;·&nbsp; 🌬&nbsp;10&nbsp;mph&nbsp;N <span class="badge text-bg-warning">IN&nbsp;7</span></div>
+      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;71°F &nbsp;·&nbsp; 💧&nbsp;52% &nbsp;·&nbsp; 🌬&nbsp;10&nbsp;mph&nbsp;NNW <span class="badge text-bg-warning">IN&nbsp;10</span></div>
       <div class="mt-1"><span class="badge text-bg-success" style="font-size:0.78rem">🏟 Roof likely OPEN — signals apply</span></div>
+      <div class="text-muted mt-1" style="font-size:0.76rem">market 7.5 · confirmed adj +0.00 runs · full model +1.05 · temp +0.22 · humidity +0.12 · wind +0.71</div>
       <div class="mt-1"><span class="badge text-bg-success" style="font-size:0.85rem">⬆ OVER lean &nbsp; ★ Weak</span></div>
-      <ul class="mb-0 ps-3 mt-1"><li style="font-size:0.78rem">★ In 7 mph → ⬆ OVER (wind)</li></ul>
+      <ul class="mb-0 ps-3 mt-1"><li style="font-size:0.78rem">★ In 10 mph → ⬆ OVER (wind)</li></ul>
       
     </div>
   </div>
-  <div class="card mb-2" style="border-left: 4px solid #dc3545; border-radius: 6px">
+  <div class="card mb-2" style="border-left: 4px solid #198754; border-radius: 6px">
     <div class="card-body py-2 px-3">
       <div class="d-flex justify-content-between align-items-start">
         <div>
-          <strong style="font-size:0.95rem">New York Mets @ Atlanta Braves</strong><span class="badge text-bg-primary ms-1">Saturday</span>
-          <div class="text-muted" style="font-size:0.8rem">Truist Park · 8:08 PM EDT</div>
+          <strong style="font-size:0.95rem">Chicago White Sox @ Cleveland Guardians</strong><span class="badge text-bg-primary ms-1">Saturday</span>
+          <div class="text-muted" style="font-size:0.8rem">Progressive Field · 7:10 PM EDT</div>
         </div>
       </div>
-      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;92°F &nbsp;·&nbsp; 💧&nbsp;39% <span class="badge text-bg-warning">DRY</span> &nbsp;·&nbsp; 🌬&nbsp;6&nbsp;mph&nbsp;WSW</div>
+      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;84°F &nbsp;·&nbsp; 💧&nbsp;55% &nbsp;·&nbsp; 🌬&nbsp;6&nbsp;mph&nbsp;NW</div>
       
-      <div class="mt-1"><span class="badge text-bg-danger" style="font-size:0.85rem">⬇ UNDER lean &nbsp; ★ Weak</span></div>
-      <ul class="mb-0 ps-3 mt-1"><li style="font-size:0.78rem">★ Dry (39% RH) → ⬇ UNDER (humidity)</li></ul>
+      <div class="text-muted mt-1" style="font-size:0.76rem">market 7.5 · confirmed adj +0.00 runs · full model +0.26 · temp +0.34 · wind -0.08</div>
+      <div class="mt-1"><span class="badge text-bg-success" style="font-size:0.85rem">⬆ OVER lean &nbsp; ★ Weak</span></div>
+      <ul class="mb-0 ps-3 mt-1"><li style="font-size:0.78rem">★ Warm (84°F) → ⬆ OVER (temp)</li></ul>
       
     </div>
   </div>
-  <div class="card mb-2" style="border-left: 4px solid #adb5bd; border-radius: 6px">
+  <div class="card mb-2" style="border-left: 4px solid #198754; border-radius: 6px">
     <div class="card-body py-2 px-3">
       <div class="d-flex justify-content-between align-items-start">
         <div>
-          <strong style="font-size:0.95rem">Toronto Blue Jays @ Seattle Mariners</strong><span class="badge text-bg-primary ms-1">Saturday</span>
-          <div class="text-muted" style="font-size:0.8rem">T-Mobile Park · 1:10 PM PDT</div>
+          <strong style="font-size:0.95rem">St. Louis Cardinals @ Chicago Cubs</strong><span class="badge text-bg-primary ms-1">Saturday</span>
+          <div class="text-muted" style="font-size:0.8rem">Wrigley Field · 7:08 PM CDT</div>
         </div>
       </div>
-      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;66°F &nbsp;·&nbsp; 💧&nbsp;69% &nbsp;·&nbsp; 🌬&nbsp;6&nbsp;mph&nbsp;WNW</div>
-      <div class="mt-1"><span class="badge text-bg-success" style="font-size:0.78rem">🏟 Roof likely OPEN — signals apply</span></div>
-      <div class="mt-1"><span class="text-muted" style="font-size:0.8rem">No signal at this venue</span></div>
+      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;72°F &nbsp;·&nbsp; 💧&nbsp;99% <span class="badge text-bg-info">HUMID</span> &nbsp;·&nbsp; 🌬&nbsp;7&nbsp;mph&nbsp;NNW</div>
       
+      <div class="text-muted mt-1" style="font-size:0.76rem">market 8 · confirmed adj +0.00 runs · full model +2.48 · temp +0.18 · humidity +2.58 · wind -0.28</div>
+      <div class="mt-1"><span class="badge text-bg-success" style="font-size:0.85rem">⬆ OVER lean &nbsp; ★ Weak</span></div>
+      <ul class="mb-0 ps-3 mt-1"><li style="font-size:0.78rem">★ Humid (99% RH) → ⬆ OVER (humidity)</li></ul>
+      <div class="text-muted mt-1" style="font-size:0.75rem">⚠️ Wrigley wind is real vs the CLOSE (t=2.27) but partially priced into openers — no confirmed opener edge. If betting wind here, you're racing the market, not beating the number.</div>
+    </div>
+  </div>
+  <div class="card mb-2" style="border-left: 4px solid #198754; border-radius: 6px">
+    <div class="card-body py-2 px-3">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <strong style="font-size:0.95rem">St. Louis Cardinals @ Chicago Cubs</strong><span class="badge text-bg-secondary ms-1">Sunday</span>
+          <div class="text-muted" style="font-size:0.8rem">Wrigley Field · 1:30 PM CDT</div>
+        </div>
+      </div>
+      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;70°F &nbsp;·&nbsp; 💧&nbsp;97% <span class="badge text-bg-info">HUMID</span> &nbsp;·&nbsp; 🌬&nbsp;11&nbsp;mph&nbsp;N</div>
       
+      <div class="text-muted mt-1" style="font-size:0.76rem">market 8 · confirmed adj +0.00 runs · full model +1.90 · temp +0.07 · humidity +2.47 · wind -0.65</div>
+      <div class="mt-1"><span class="badge text-bg-success" style="font-size:0.85rem">⬆ OVER lean &nbsp; ★ Weak</span></div>
+      <ul class="mb-0 ps-3 mt-1"><li style="font-size:0.78rem">★ Humid (97% RH) → ⬆ OVER (humidity)</li></ul>
+      <div class="text-muted mt-1" style="font-size:0.75rem">⚠️ Wrigley wind is real vs the CLOSE (t=2.27) but partially priced into openers — no confirmed opener edge. If betting wind here, you're racing the market, not beating the number.</div>
     </div>
   </div>
   <div class="card mb-2" style="border-left: 4px solid #adb5bd; border-radius: 6px">
@@ -161,83 +187,25 @@
           <div class="text-muted" style="font-size:0.8rem">Great American Ball Park · 7:10 PM EDT</div>
         </div>
       </div>
-      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;93°F &nbsp;·&nbsp; 💧&nbsp;45% &nbsp;·&nbsp; 🌬&nbsp;8&nbsp;mph&nbsp;W</div>
+      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;94°F &nbsp;·&nbsp; 💧&nbsp;39% <span class="badge text-bg-warning">DRY</span> &nbsp;·&nbsp; 🌬&nbsp;7&nbsp;mph&nbsp;WSW</div>
       
+      <div class="text-muted mt-1" style="font-size:0.76rem">market 9 · confirmed adj +0.00 runs · temp -0.06</div>
       <div class="mt-1"><span class="text-muted" style="font-size:0.8rem">No signal at this venue</span></div>
       
-      <div class="text-muted mt-1" style="font-size:0.75rem">⚠️ GABP: humidity signals unreliable (possibly mispriced baseline). Wind signal only.</div>
+      <div class="text-muted mt-1" style="font-size:0.75rem">⚠️ GABP: historically suspicious park (always-Over baseline mispricing). Wind t=1.48 just under threshold — no confirmed edge.</div>
     </div>
   </div>
   <div class="card mb-2" style="border-left: 4px solid #adb5bd; border-radius: 6px">
     <div class="card-body py-2 px-3">
       <div class="d-flex justify-content-between align-items-start">
         <div>
-          <strong style="font-size:0.95rem">Chicago White Sox @ Cleveland Guardians</strong><span class="badge text-bg-primary ms-1">Saturday</span>
-          <div class="text-muted" style="font-size:0.8rem">Progressive Field · 7:10 PM EDT</div>
+          <strong style="font-size:0.95rem">New York Mets @ Atlanta Braves</strong><span class="badge text-bg-primary ms-1">Saturday</span>
+          <div class="text-muted" style="font-size:0.8rem">Truist Park · 8:08 PM EDT</div>
         </div>
       </div>
-      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;80°F &nbsp;·&nbsp; 💧&nbsp;71% <span class="badge text-bg-info">HUMID</span> &nbsp;·&nbsp; 🌬&nbsp;8&nbsp;mph&nbsp;WNW</div>
+      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;92°F &nbsp;·&nbsp; 💧&nbsp;35% <span class="badge text-bg-warning">DRY</span> &nbsp;·&nbsp; 🌬&nbsp;6&nbsp;mph&nbsp;NNW</div>
       
-      <div class="mt-1"><span class="text-muted" style="font-size:0.8rem">No signal at this venue</span></div>
-      
-      
-    </div>
-  </div>
-  <div class="card mb-2" style="border-left: 4px solid #adb5bd; border-radius: 6px">
-    <div class="card-body py-2 px-3">
-      <div class="d-flex justify-content-between align-items-start">
-        <div>
-          <strong style="font-size:0.95rem">St. Louis Cardinals @ Chicago Cubs</strong><span class="badge text-bg-primary ms-1">Saturday</span>
-          <div class="text-muted" style="font-size:0.8rem">Wrigley Field · 7:08 PM CDT</div>
-        </div>
-      </div>
-      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;74°F &nbsp;·&nbsp; 💧&nbsp;88% <span class="badge text-bg-info">HUMID</span> &nbsp;·&nbsp; 🌬&nbsp;5&nbsp;mph&nbsp;WSW</div>
-      
-      <div class="mt-1"><span class="text-muted" style="font-size:0.8rem">No signal at this venue</span></div>
-      
-      
-    </div>
-  </div>
-  <div class="card mb-2" style="border-left: 4px solid #adb5bd; border-radius: 6px">
-    <div class="card-body py-2 px-3">
-      <div class="d-flex justify-content-between align-items-start">
-        <div>
-          <strong style="font-size:0.95rem">San Francisco Giants @ Colorado Rockies</strong><span class="badge text-bg-primary ms-1">Saturday</span>
-          <div class="text-muted" style="font-size:0.8rem">Coors Field · 6:10 PM MDT</div>
-        </div>
-      </div>
-      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;86°F &nbsp;·&nbsp; 💧&nbsp;20% <span class="badge text-bg-warning">DRY</span> &nbsp;·&nbsp; 🌬&nbsp;13&nbsp;mph&nbsp;S <span class="badge text-bg-warning">OUT&nbsp;13</span></div>
-      
-      <div class="mt-1"><span class="text-muted" style="font-size:0.8rem">No signal at this venue</span></div>
-      
-      
-    </div>
-  </div>
-  <div class="card mb-2" style="border-left: 4px solid #adb5bd; border-radius: 6px">
-    <div class="card-body py-2 px-3">
-      <div class="d-flex justify-content-between align-items-start">
-        <div>
-          <strong style="font-size:0.95rem">Miami Marlins @ Athletics</strong><span class="badge text-bg-primary ms-1">Saturday</span>
-          <div class="text-muted" style="font-size:0.8rem">Sutter Health Park · 6:40 PM PDT</div>
-        </div>
-      </div>
-      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;85°F &nbsp;·&nbsp; 💧&nbsp;31% <span class="badge text-bg-warning">DRY</span> &nbsp;·&nbsp; 🌬&nbsp;11&nbsp;mph&nbsp;SW <span class="badge text-bg-warning">OUT&nbsp;11</span></div>
-      
-      <div class="mt-1"><span class="text-muted" style="font-size:0.8rem">No signal at this venue</span></div>
-      
-      <div class="text-muted mt-1" style="font-size:0.75rem">⚠️ ⚾ SACRAMENTOVERS: Sutter Health Park showed a strong unconditional Over lean in 2025 (FG Over 54% W/L, F5 Over 61% W/L). Weather model not yet validated — insufficient sample. Treat any sharp Over signal here as reinforced by park factor.</div>
-    </div>
-  </div>
-  <div class="card mb-2" style="border-left: 4px solid #adb5bd; border-radius: 6px">
-    <div class="card-body py-2 px-3">
-      <div class="d-flex justify-content-between align-items-start">
-        <div>
-          <strong style="font-size:0.95rem">San Diego Padres @ Los Angeles Dodgers</strong><span class="badge text-bg-primary ms-1">Saturday</span>
-          <div class="text-muted" style="font-size:0.8rem">Dodger Stadium · 7:10 PM PDT</div>
-        </div>
-      </div>
-      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;69°F &nbsp;·&nbsp; 💧&nbsp;67% &nbsp;·&nbsp; 🌬&nbsp;7&nbsp;mph&nbsp;WSW</div>
-      
+      <div class="text-muted mt-1" style="font-size:0.76rem">market 8 · confirmed adj +0.00 runs · temp +0.19 · humidity -0.46 · wind +0.30</div>
       <div class="mt-1"><span class="text-muted" style="font-size:0.8rem">No signal at this venue</span></div>
       
       
@@ -251,8 +219,9 @@
           <div class="text-muted" style="font-size:0.8rem">Truist Park · 12:30 PM EDT</div>
         </div>
       </div>
-      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;90°F &nbsp;·&nbsp; 💧&nbsp;49% &nbsp;·&nbsp; 🌬&nbsp;7&nbsp;mph&nbsp;WNW</div>
+      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;94°F &nbsp;·&nbsp; 💧&nbsp;39% <span class="badge text-bg-warning">DRY</span> &nbsp;·&nbsp; 🌬&nbsp;1&nbsp;mph&nbsp;SSW</div>
       
+      <div class="text-muted mt-1" style="font-size:0.76rem">market 8 · confirmed adj +0.00 runs · full model -0.23 · temp +0.22 · humidity -0.38 · wind -0.07</div>
       <div class="mt-1"><span class="text-muted" style="font-size:0.8rem">No signal at this venue</span></div>
       
       
@@ -266,26 +235,12 @@
           <div class="text-muted" style="font-size:0.8rem">Great American Ball Park · 1:05 PM EDT</div>
         </div>
       </div>
-      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;86°F &nbsp;·&nbsp; 💧&nbsp;60% &nbsp;·&nbsp; 🌬&nbsp;4&nbsp;mph&nbsp;W</div>
+      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;90°F &nbsp;·&nbsp; 💧&nbsp;51% &nbsp;·&nbsp; 🌬&nbsp;2&nbsp;mph&nbsp;WSW</div>
       
+      <div class="text-muted mt-1" style="font-size:0.76rem">market 9 · confirmed adj +0.00 runs · conditions ≈ park average</div>
       <div class="mt-1"><span class="text-muted" style="font-size:0.8rem">No signal at this venue</span></div>
       
-      <div class="text-muted mt-1" style="font-size:0.75rem">⚠️ GABP: humidity signals unreliable (possibly mispriced baseline). Wind signal only.</div>
-    </div>
-  </div>
-  <div class="card mb-2" style="border-left: 4px solid #adb5bd; border-radius: 6px">
-    <div class="card-body py-2 px-3">
-      <div class="d-flex justify-content-between align-items-start">
-        <div>
-          <strong style="font-size:0.95rem">Minnesota Twins @ New York Yankees</strong><span class="badge text-bg-secondary ms-1">Sunday</span>
-          <div class="text-muted" style="font-size:0.8rem">Yankee Stadium · 1:35 PM EDT</div>
-        </div>
-      </div>
-      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;83°F &nbsp;·&nbsp; 💧&nbsp;72% <span class="badge text-bg-info">HUMID</span> &nbsp;·&nbsp; 🌬&nbsp;6&nbsp;mph&nbsp;SSE <span class="badge text-bg-warning">OUT&nbsp;6</span></div>
-      
-      <div class="mt-1"><span class="text-muted" style="font-size:0.8rem">No signal at this venue</span></div>
-      
-      
+      <div class="text-muted mt-1" style="font-size:0.75rem">⚠️ GABP: historically suspicious park (always-Over baseline mispricing). Wind t=1.48 just under threshold — no confirmed edge.</div>
     </div>
   </div>
   <div class="card mb-2" style="border-left: 4px solid #adb5bd; border-radius: 6px">
@@ -296,23 +251,9 @@
           <div class="text-muted" style="font-size:0.8rem">Progressive Field · 2:00 PM EDT</div>
         </div>
       </div>
-      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;75°F &nbsp;·&nbsp; 💧&nbsp;93% <span class="badge text-bg-info">HUMID</span> &nbsp;·&nbsp; 🌬&nbsp;6&nbsp;mph&nbsp;W</div>
+      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;80°F &nbsp;·&nbsp; 💧&nbsp;74% <span class="badge text-bg-info">HUMID</span> &nbsp;·&nbsp; 🌬&nbsp;5&nbsp;mph&nbsp;NNE</div>
       
-      <div class="mt-1"><span class="text-muted" style="font-size:0.8rem">No signal at this venue</span></div>
-      
-      
-    </div>
-  </div>
-  <div class="card mb-2" style="border-left: 4px solid #adb5bd; border-radius: 6px">
-    <div class="card-body py-2 px-3">
-      <div class="d-flex justify-content-between align-items-start">
-        <div>
-          <strong style="font-size:0.95rem">St. Louis Cardinals @ Chicago Cubs</strong><span class="badge text-bg-secondary ms-1">Sunday</span>
-          <div class="text-muted" style="font-size:0.8rem">Wrigley Field · 1:30 PM CDT</div>
-        </div>
-      </div>
-      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;73°F &nbsp;·&nbsp; 💧&nbsp;91% <span class="badge text-bg-info">HUMID</span> &nbsp;·&nbsp; 🌬&nbsp;6&nbsp;mph&nbsp;NNE</div>
-      
+      <div class="text-muted mt-1" style="font-size:0.76rem">market 7.5 · confirmed adj +0.00 runs · full model +0.30 · temp +0.24 · humidity +0.13 · wind -0.08</div>
       <div class="mt-1"><span class="text-muted" style="font-size:0.8rem">No signal at this venue</span></div>
       
       
@@ -326,8 +267,9 @@
           <div class="text-muted" style="font-size:0.8rem">Coors Field · 2:00 PM MDT</div>
         </div>
       </div>
-      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;95°F &nbsp;·&nbsp; 💧&nbsp;10% <span class="badge text-bg-warning">DRY</span> &nbsp;·&nbsp; 🌬&nbsp;6&nbsp;mph&nbsp;ESE</div>
+      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;95°F &nbsp;·&nbsp; 💧&nbsp;9% <span class="badge text-bg-warning">DRY</span> &nbsp;·&nbsp; 🌬&nbsp;6&nbsp;mph&nbsp;NE</div>
       
+      <div class="text-muted mt-1" style="font-size:0.76rem">market 12 · confirmed adj +0.00 runs · full model +0.31 · temp +0.59 · humidity -0.13 · wind -0.15</div>
       <div class="mt-1"><span class="text-muted" style="font-size:0.8rem">No signal at this venue</span></div>
       
       
@@ -341,8 +283,9 @@
           <div class="text-muted" style="font-size:0.8rem">Sutter Health Park · 1:30 PM PDT</div>
         </div>
       </div>
-      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;80°F &nbsp;·&nbsp; 💧&nbsp;36% <span class="badge text-bg-warning">DRY</span> &nbsp;·&nbsp; 🌬&nbsp;12&nbsp;mph&nbsp;SW <span class="badge text-bg-warning">OUT&nbsp;12</span></div>
+      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;79°F &nbsp;·&nbsp; 💧&nbsp;39% <span class="badge text-bg-warning">DRY</span> &nbsp;·&nbsp; 🌬&nbsp;8&nbsp;mph&nbsp;SSW <span class="badge text-bg-warning">OUT&nbsp;7</span></div>
       
+      <div class="text-muted mt-1" style="font-size:0.76rem">market 11 · confirmed adj +0.00 runs · conditions ≈ park average</div>
       <div class="mt-1"><span class="text-muted" style="font-size:0.8rem">No signal at this venue</span></div>
       
       <div class="text-muted mt-1" style="font-size:0.75rem">⚠️ ⚾ SACRAMENTOVERS: Sutter Health Park showed a strong unconditional Over lean in 2025 (FG Over 54% W/L, F5 Over 61% W/L). Weather model not yet validated — insufficient sample. Treat any sharp Over signal here as reinforced by park factor.</div>
@@ -356,8 +299,25 @@
           <div class="text-muted" style="font-size:0.8rem">Dodger Stadium · 4:20 PM PDT</div>
         </div>
       </div>
-      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;79°F &nbsp;·&nbsp; 💧&nbsp;45% &nbsp;·&nbsp; 🌬&nbsp;10&nbsp;mph&nbsp;WSW <span class="badge text-bg-warning">OUT&nbsp;8</span></div>
+      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;76°F &nbsp;·&nbsp; 💧&nbsp;54% &nbsp;·&nbsp; 🌬&nbsp;9&nbsp;mph&nbsp;WSW <span class="badge text-bg-warning">OUT&nbsp;7</span></div>
       
+      <div class="text-muted mt-1" style="font-size:0.76rem">market 8.5 · confirmed adj +0.00 runs · full model +0.13 · temp -0.26 · wind +0.38</div>
+      <div class="mt-1"><span class="text-muted" style="font-size:0.8rem">No signal at this venue</span></div>
+      
+      
+    </div>
+  </div>
+  <div class="card mb-2" style="border-left: 4px solid #adb5bd; border-radius: 6px">
+    <div class="card-body py-2 px-3">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <strong style="font-size:0.95rem">Boston Red Sox @ Los Angeles Angels</strong><span class="badge text-bg-secondary ms-1">Sunday</span>
+          <div class="text-muted" style="font-size:0.8rem">Angel Stadium · 6:30 PM PDT</div>
+        </div>
+      </div>
+      <div class="mt-1" style="font-size:0.82rem">🌡&nbsp;73°F &nbsp;·&nbsp; 💧&nbsp;62% &nbsp;·&nbsp; 🌬&nbsp;7&nbsp;mph&nbsp;SW <span class="badge text-bg-warning">OUT&nbsp;7</span></div>
+      
+      <div class="text-muted mt-1" style="font-size:0.76rem">market 8.5 · confirmed adj +0.00 runs · full model +0.34 · wind +0.29</div>
       <div class="mt-1"><span class="text-muted" style="font-size:0.8rem">No signal at this venue</span></div>
       
       
@@ -372,6 +332,7 @@
         </div>
       </div>
       <div class="mt-1" style="font-size:0.82rem"><em class='text-muted'>🏟 Dome/retractable roof — weather not applicable</em></div>
+      
       
       <div class="mt-1"><span class="text-muted" style="font-size:0.8rem">No signal at this venue</span></div>
       
@@ -388,9 +349,42 @@
       </div>
       <div class="mt-1" style="font-size:0.82rem"><em class='text-muted'>🏟 Dome/retractable roof — weather not applicable</em></div>
       
+      
       <div class="mt-1"><span class="text-muted" style="font-size:0.8rem">No signal at this venue</span></div>
       
       
+    </div>
+  </div>
+  <div class="card mb-2" style="border-left: 4px solid #adb5bd; border-radius: 6px">
+    <div class="card-body py-2 px-3">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <strong style="font-size:0.95rem">San Francisco Giants @ Colorado Rockies</strong><span class="badge text-bg-primary ms-1">Saturday</span>
+          <div class="text-muted" style="font-size:0.8rem">Coors Field · TBD</div>
+        </div>
+      </div>
+      <div class="mt-1" style="font-size:0.82rem"><em class='text-muted'>weather unavailable</em></div>
+      
+      
+      <div class="mt-1"><span class="text-muted" style="font-size:0.8rem">No signal at this venue</span></div>
+      
+      
+    </div>
+  </div>
+  <div class="card mb-2" style="border-left: 4px solid #adb5bd; border-radius: 6px">
+    <div class="card-body py-2 px-3">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <strong style="font-size:0.95rem">Philadelphia Phillies @ Kansas City Royals</strong><span class="badge text-bg-primary ms-1">Saturday</span>
+          <div class="text-muted" style="font-size:0.8rem">Kauffman Stadium · TBD</div>
+        </div>
+      </div>
+      <div class="mt-1" style="font-size:0.82rem"><em class='text-muted'>weather unavailable</em></div>
+      
+      
+      <div class="mt-1"><span class="text-muted" style="font-size:0.8rem">No signal at this venue</span></div>
+      
+      <div class="text-muted mt-1" style="font-size:0.75rem">⚠️ Market moves the WRONG way on dry days here — edge grows toward close.</div>
     </div>
   </div>
   <div class="card mb-2" style="border-left: 4px solid #adb5bd; border-radius: 6px">
@@ -403,9 +397,26 @@
       </div>
       <div class="mt-1" style="font-size:0.82rem"><em class='text-muted'>weather unavailable</em></div>
       
+      
       <div class="mt-1"><span class="text-muted" style="font-size:0.8rem">No signal at this venue</span></div>
       
       
+    </div>
+  </div>
+  <div class="card mb-2" style="border-left: 4px solid #adb5bd; border-radius: 6px">
+    <div class="card-body py-2 px-3">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <strong style="font-size:0.95rem">Miami Marlins @ Athletics</strong><span class="badge text-bg-primary ms-1">Saturday</span>
+          <div class="text-muted" style="font-size:0.8rem">Sutter Health Park · TBD</div>
+        </div>
+      </div>
+      <div class="mt-1" style="font-size:0.82rem"><em class='text-muted'>weather unavailable</em></div>
+      
+      
+      <div class="mt-1"><span class="text-muted" style="font-size:0.8rem">No signal at this venue</span></div>
+      
+      <div class="text-muted mt-1" style="font-size:0.75rem">⚠️ ⚾ SACRAMENTOVERS: Sutter Health Park showed a strong unconditional Over lean in 2025 (FG Over 54% W/L, F5 Over 61% W/L). Weather model not yet validated — insufficient sample. Treat any sharp Over signal here as reinforced by park factor.</div>
     </div>
   </div>
   <div class="card mb-2" style="border-left: 4px solid #adb5bd; border-radius: 6px">
@@ -418,9 +429,42 @@
       </div>
       <div class="mt-1" style="font-size:0.82rem"><em class='text-muted'>🏟 Dome/retractable roof — weather not applicable</em></div>
       
+      
       <div class="mt-1"><span class="text-muted" style="font-size:0.8rem">No signal at this venue</span></div>
       
       
+    </div>
+  </div>
+  <div class="card mb-2" style="border-left: 4px solid #adb5bd; border-radius: 6px">
+    <div class="card-body py-2 px-3">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <strong style="font-size:0.95rem">San Diego Padres @ Los Angeles Dodgers</strong><span class="badge text-bg-primary ms-1">Saturday</span>
+          <div class="text-muted" style="font-size:0.8rem">Dodger Stadium · TBD</div>
+        </div>
+      </div>
+      <div class="mt-1" style="font-size:0.82rem"><em class='text-muted'>weather unavailable</em></div>
+      
+      
+      <div class="mt-1"><span class="text-muted" style="font-size:0.8rem">No signal at this venue</span></div>
+      
+      
+    </div>
+  </div>
+  <div class="card mb-2" style="border-left: 4px solid #adb5bd; border-radius: 6px">
+    <div class="card-body py-2 px-3">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <strong style="font-size:0.95rem">Philadelphia Phillies @ Kansas City Royals</strong><span class="badge text-bg-secondary ms-1">Sunday</span>
+          <div class="text-muted" style="font-size:0.8rem">Kauffman Stadium · TBD</div>
+        </div>
+      </div>
+      <div class="mt-1" style="font-size:0.82rem"><em class='text-muted'>weather unavailable</em></div>
+      
+      
+      <div class="mt-1"><span class="text-muted" style="font-size:0.8rem">No signal at this venue</span></div>
+      
+      <div class="text-muted mt-1" style="font-size:0.75rem">⚠️ Market moves the WRONG way on dry days here — edge grows toward close.</div>
     </div>
   </div>
   <div class="card mb-2" style="border-left: 4px solid #adb5bd; border-radius: 6px">
@@ -432,6 +476,7 @@
         </div>
       </div>
       <div class="mt-1" style="font-size:0.82rem"><em class='text-muted'>🏟 Dome/retractable roof — weather not applicable</em></div>
+      
       
       <div class="mt-1"><span class="text-muted" style="font-size:0.8rem">No signal at this venue</span></div>
       
@@ -448,6 +493,7 @@
       </div>
       <div class="mt-1" style="font-size:0.82rem"><em class='text-muted'>🏟 Dome/retractable roof — weather not applicable</em></div>
       
+      
       <div class="mt-1"><span class="text-muted" style="font-size:0.8rem">No signal at this venue</span></div>
       
       
@@ -463,20 +509,6 @@
       </div>
       <div class="mt-1" style="font-size:0.82rem"><em class='text-muted'>🏟 Dome/retractable roof — weather not applicable</em></div>
       
-      <div class="mt-1"><span class="text-muted" style="font-size:0.8rem">No signal at this venue</span></div>
-      
-      
-    </div>
-  </div>
-  <div class="card mb-2" style="border-left: 4px solid #adb5bd; border-radius: 6px">
-    <div class="card-body py-2 px-3">
-      <div class="d-flex justify-content-between align-items-start">
-        <div>
-          <strong style="font-size:0.95rem">Boston Red Sox @ Los Angeles Angels</strong><span class="badge text-bg-secondary ms-1">Sunday</span>
-          <div class="text-muted" style="font-size:0.8rem">Angel Stadium · TBD</div>
-        </div>
-      </div>
-      <div class="mt-1" style="font-size:0.82rem"><em class='text-muted'>weather unavailable</em></div>
       
       <div class="mt-1"><span class="text-muted" style="font-size:0.8rem">No signal at this venue</span></div>
       
@@ -485,8 +517,9 @@
   </div>
 
   <div class="text-muted text-center mt-3" style="font-size:0.72rem">
-    Model: per-park OLS (gap ~ temp + relh + eff_wind) · 5,393 games 2023–2025<br>
-    CF bearings approximate · Retractable roof status estimated from temp/precip conditions
+    Model v2: per-park OLS vs OPENING line (gap_open ~ temp + relh + eff_wind) · 5,393 games 2023–2025<br>
+    fair total = market + Σ β×(forecast − park baseline), confirmed factors only<br>
+    CF bearings approximate · Roof status estimated from temp/precip · Totals: The Odds API (median across books)
   </div>
 </div>
 </body>
