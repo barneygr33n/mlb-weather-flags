@@ -1,8 +1,20 @@
 #!/usr/bin/env python3
 """
-MLB Weather Flag Tool — v2: TOTALS ORIGINATION (2026-07-04)
+MLB Weather Flag Tool — v3: ANTICIPATORY OPENER TRIPWIRE (2026-07-04)
 Runs via GitHub Actions at 5am and 5pm CDT (10:00 and 22:00 UTC).
 Outputs docs/index.html — served via GitHub Pages.
+
+v3 changes:
+  - Adds an opener predictor (predict_opener): walk-forward-validated model of
+    where the market total will FIRST post, using park mean + recent-league
+    mean + each team's recent deviation vs park baseline. Lets the user know
+    the night before whether to fire the moment a line posts.
+  - Logs the first-seen market total per game to docs/totals_log.csv (opener
+    proxy) — the log both feeds the predictor's team-deviation terms and
+    accumulates a proprietary opener history over time.
+  - Flagged cards with no market total yet show an anticipatory tripwire line
+    (expected opener, fair number, action threshold). Flagged cards that
+    already have a market total show a compact opener-check line instead.
 
 v2 changes:
   - Coefficients replaced with gap-vs-OPENER betas (weather_market_residual.py,
@@ -22,7 +34,7 @@ Data sources:
   Totals:       api.the-odds-api.com (optional, ODDS_API_KEY)
 """
 
-import json, math, os, sys, datetime, requests
+import csv, json, math, os, sys, datetime, requests
 from zoneinfo import ZoneInfo
 
 UTC = ZoneInfo("UTC")
@@ -273,6 +285,9 @@ VENUE_MAP = {
     "Sutter Health Park West Sacramento": "Sutter Health Park",
     # Dodger Stadium naming rights change (2026)
     "UNIQLO Field at Dodger Stadium":  "Dodger Stadium",
+    # PARKS dict spells it "Petco Park"; PARK_OPEN_MEAN (opener model) uses the
+    # official "PETCO Park" capitalization — alias so both resolve the same way.
+    "PETCO Park":                      "Petco Park",
 }
 
 # Dome and retractable-roof parks excluded from weather model.
@@ -498,6 +513,162 @@ def lookup_market_total(totals, home, away, game_dt_str):
             if v is not None:
                 return v
     return None
+
+# ── Totals log (first-seen opener capture) ────────────────────────────────────
+# Persists the first market total ever seen per (date, home, away) to
+# docs/totals_log.csv, alongside index.html. First-seen = opener proxy: once
+# a game has a logged row, later runs never overwrite it, even if the market
+# total moves. This both builds a proprietary opener history over time and
+# feeds predict_opener()'s recent-league-mean and team-deviation terms.
+
+TOTALS_LOG_COLUMNS = ["first_seen_utc", "date", "home", "away", "venue", "total"]
+
+def load_totals_log(docs_dir="docs"):
+    """Return list of dict rows from docs/totals_log.csv, or [] if absent."""
+    path = os.path.join(docs_dir, "totals_log.csv")
+    if not os.path.exists(path):
+        return []
+    rows = []
+    try:
+        with open(path, "r", encoding="utf-8", newline="") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                rows.append(row)
+    except Exception as e:
+        print(f"  Totals log read error: {e}", file=sys.stderr)
+        return []
+    return rows
+
+def update_totals_log(log_rows, games_with_totals, now_utc, docs_dir="docs"):
+    """
+    games_with_totals: iterable of dicts with keys date, home, away, venue, total
+    (total may be None — skipped, nothing to log yet).
+    Mutates/extends log_rows in place with any new (date, home, away) games,
+    using first-seen semantics, then writes docs/totals_log.csv.
+    Returns the (possibly extended) log_rows list.
+    """
+    seen_keys = {(r["date"], r["home"], r["away"]) for r in log_rows}
+    ts = now_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+    for g in games_with_totals:
+        if g.get("total") is None:
+            continue
+        key = (g["date"], g["home"], g["away"])
+        if key in seen_keys:
+            continue  # first-seen already logged — do not update
+        log_rows.append({
+            "first_seen_utc": ts,
+            "date": g["date"],
+            "home": g["home"],
+            "away": g["away"],
+            "venue": g["venue"],
+            "total": g["total"],
+        })
+        seen_keys.add(key)
+
+    os.makedirs(docs_dir, exist_ok=True)
+    path = os.path.join(docs_dir, "totals_log.csv")
+    try:
+        with open(path, "w", encoding="utf-8", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=TOTALS_LOG_COLUMNS)
+            writer.writeheader()
+            for r in log_rows:
+                writer.writerow({c: r.get(c, "") for c in TOTALS_LOG_COLUMNS})
+    except Exception as e:
+        print(f"  Totals log write error: {e}", file=sys.stderr)
+    return log_rows
+
+# ── Opener predictor (v3) ─────────────────────────────────────────────────────
+# fitted 2026-07-04 on 11,002 games 2021-2025 (walk-forward validated: MAE
+# 0.446, sigma 0.592, 92.4% of openers within ±1.0); park means from 2024-2025
+# openers.
+
+LEAGUE_OPEN_MEAN = 8.411
+PARK_OPEN_MEAN = {
+    "American Family Field": 8.150, "Angel Stadium": 8.586, "Busch Stadium": 8.194,
+    "Chase Field": 8.815, "Citi Field": 8.085, "Citizens Bank Park": 8.441,
+    "Comerica Park": 8.020, "Coors Field": 10.882, "Daikin Park": 8.255,
+    "Dodger Stadium": 8.566, "Fenway Park": 8.991, "George M. Steinbrenner Field": 8.669,
+    "Globe Life Field": 8.398, "Great American Ball Park": 9.029, "Kauffman Stadium": 8.600,
+    "Nationals Park": 8.668, "Oakland Coliseum": 8.006, "Oracle Park": 7.690,
+    "Oriole Park at Camden Yards": 8.729, "PETCO Park": 7.867, "PNC Park": 8.178,
+    "Progressive Field": 8.138, "Rate Field": 8.315, "Rogers Centre": 8.329,
+    "T-Mobile Park": 7.348, "Target Field": 8.234, "Tropicana Field": 7.822,
+    "Truist Park": 8.511, "Wrigley Field": 8.214, "Yankee Stadium": 8.505,
+    "loanDepot park": 8.147,
+}
+
+def _park_open_mean(venue):
+    """Look up PARK_OPEN_MEAN, trying the raw venue name, the normalized
+    PARKS-dict spelling, and the alt PETCO/Rate Field/loanDepot spellings."""
+    if venue in PARK_OPEN_MEAN:
+        return PARK_OPEN_MEAN[venue]
+    normalized = normalize_venue(venue)
+    if normalized in PARK_OPEN_MEAN:
+        return PARK_OPEN_MEAN[normalized]
+    # normalize_venue maps "PETCO Park" -> "Petco Park", but PARK_OPEN_MEAN
+    # (verbatim from the opener model) is keyed "PETCO Park" — try the reverse.
+    aliases = {"Petco Park": "PETCO Park", "Guaranteed Rate Field": "Rate Field",
+               "LoanDepot Park": "loanDepot park"}
+    if normalized in aliases and aliases[normalized] in PARK_OPEN_MEAN:
+        return PARK_OPEN_MEAN[aliases[normalized]]
+    return LEAGUE_OPEN_MEAN
+
+def predict_opener(home_full_name, away_full_name, venue, log_rows):
+    """
+    Predict where the market total will FIRST open, using:
+      pred = 1.9198 + 1.0867*pm - 0.3127*lgm + 0.7364*dev_h + 0.3654*dev_a
+    pm  = park's opener mean (PARK_OPEN_MEAN, fallback LEAGUE_OPEN_MEAN)
+    lgm = mean of logged totals from the last 60 days (>=50 rows required,
+          else LEAGUE_OPEN_MEAN)
+    dev_h/dev_a = home/away team's mean (logged total - that game's park mean)
+          over their most recent 15 logged games (home or away), requires
+          >=5 logged games for that team, else 0.0
+    """
+    pm = _park_open_mean(venue)
+
+    # lgm: recent-60-day league mean of logged totals
+    lgm = LEAGUE_OPEN_MEAN
+    recent_totals = []
+    today = datetime.date.today()
+    cutoff = today - datetime.timedelta(days=60)
+    for r in log_rows:
+        try:
+            d = datetime.date.fromisoformat(r["date"])
+        except (ValueError, KeyError, TypeError):
+            continue
+        if d >= cutoff:
+            try:
+                recent_totals.append(float(r["total"]))
+            except (ValueError, KeyError, TypeError):
+                continue
+    if len(recent_totals) >= 50:
+        lgm = sum(recent_totals) / len(recent_totals)
+
+    def team_dev(team_name):
+        team_rows = [r for r in log_rows if r.get("home") == team_name or r.get("away") == team_name]
+        if len(team_rows) < 5:
+            return 0.0
+        # most recent 15 by first_seen_utc (fallback: date) descending
+        def sort_key(r):
+            return r.get("first_seen_utc") or r.get("date") or ""
+        team_rows_sorted = sorted(team_rows, key=sort_key, reverse=True)[:15]
+        devs = []
+        for r in team_rows_sorted:
+            try:
+                total = float(r["total"])
+            except (ValueError, KeyError, TypeError):
+                continue
+            park_mean = _park_open_mean(r.get("venue", ""))
+            devs.append(total - park_mean)
+        if not devs:
+            return 0.0
+        return sum(devs) / len(devs)
+
+    dev_h = team_dev(home_full_name)
+    dev_a = team_dev(away_full_name)
+
+    pred = 1.9198 + 1.0867 * pm - 0.3127 * lgm + 0.7364 * dev_h + 0.3654 * dev_a
+    return pred
 
 # ── Totals origination ────────────────────────────────────────────────────────
 # adj = Σ β × (forecast condition − park baseline), per factor.
@@ -737,6 +908,23 @@ def render_card(card):
                          + (f' · full model {orig["adj_all"]:+.2f}' if abs(orig["adj_all"] - orig["adj_conf"]) >= 0.1 else "")
                          + f' · {breakdown}</div>')
 
+    # ── Opener tripwire (v3): anticipatory prediction for flagged games ────────
+    tripwire_html = ""
+    pred = card.get("opener_pred")
+    if orig is not None and orig.get("flag") and pred is not None:
+        adj_conf = orig["adj_conf"]
+        if market_total is None:
+            fair = pred + adj_conf
+            action_line = (f"⏱ Expected opener ~{pred:.1f} · fair ≈ {fair:.1f} · "
+                           f"if opens ≤ {pred + 1.0:.1f} → standard play at open · "
+                           f"if higher → verify pitching/roof/news before betting")
+        else:
+            diff = market_total - pred
+            verify = "— verify before betting" if diff > 1.0 else ""
+            action_line = (f"⏱ Opener check: expected ~{pred:.1f}, market {market_total:g} "
+                           f"({diff:+.1f} vs expected{verify})")
+        tripwire_html = (f'<div class="text-muted mt-1" style="font-size:0.74rem">{action_line}</div>')
+
     # Net signal headline
     if direction == "OVER":
         headline = (f'<span class="badge text-bg-success" style="font-size:0.85rem">'
@@ -774,6 +962,7 @@ def render_card(card):
       <div class="mt-1" style="font-size:0.82rem">{wx_line}</div>
       {roof_html}
       {orig_html}
+      {tripwire_html}
       <div class="mt-1">{headline}</div>
       {detail_html}
       {notes_html}
@@ -850,7 +1039,8 @@ def generate_html(cards, generated_at):
   <div class="text-muted text-center mt-3" style="font-size:0.72rem">
     Model v2: per-park OLS vs OPENING line (gap_open ~ temp + relh + eff_wind) · 5,393 games 2023–2025<br>
     fair total = market + Σ β×(forecast − park baseline), confirmed factors only<br>
-    CF bearings approximate · Roof status estimated from temp/precip · Totals: The Odds API (median across books)
+    CF bearings approximate · Roof status estimated from temp/precip · Totals: The Odds API (median across books)<br>
+    Opener predictor: walk-forward MAE 0.45
   </div>
 </div>
 </body>
@@ -858,16 +1048,21 @@ def generate_html(cards, generated_at):
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
+DOCS_DIR = "docs"
+
 def main():
     now_utc = datetime.datetime.now(UTC)
     today   = now_utc.astimezone(ZoneInfo("America/Chicago")).date()
     tomorrow = today + datetime.timedelta(days=1)
 
-    print(f"MLB Weather Flag Tool v2 (origination) — {now_utc.strftime('%Y-%m-%d %H:%M UTC')}")
+    print(f"MLB Weather Flag Tool v3 (opener tripwire) — {now_utc.strftime('%Y-%m-%d %H:%M UTC')}")
     print(f"Running for: {today.strftime('%A %Y-%m-%d')}  {tomorrow.strftime('%A %Y-%m-%d')}\n")
 
     market_totals = fetch_market_totals()
+    log_rows = load_totals_log(DOCS_DIR)
+    print(f"  Totals log loaded: {len(log_rows)} row(s)")
     all_cards = []
+    log_candidates = []   # games this run with a market total, for first-seen logging
 
     for is_first, date_obj in [(True, today), (False, tomorrow)]:
         date_label = date_obj.strftime("%A")   # "Thursday", "Friday", etc.
@@ -889,7 +1084,7 @@ def main():
                 "wind_dir": None, "wind_eff": 0.0, "game_local": None,
                 "precip_prob": None,
                 "signals": [],
-                "orig": None, "market_total": None,
+                "orig": None, "market_total": None, "opener_pred": None,
                 "notes": park.get("notes", "") if park else "",
             }
 
@@ -908,6 +1103,9 @@ def main():
                     orig = originate(park, temp, relh, we)
                     mkt = lookup_market_total(market_totals, game["home"],
                                               game["away"], game["game_dt_str"])
+                    opener_pred = None
+                    if orig and orig["flag"]:
+                        opener_pred = predict_opener(game["home"], game["away"], venue, log_rows)
                     card.update({
                         "temp": temp, "relh": relh,
                         "wind_speed": wspd, "wind_dir": wdir,
@@ -915,6 +1113,7 @@ def main():
                         "precip_prob": precip_prob,
                         "signals": detect_signals(park, temp, relh, we),
                         "orig": orig, "market_total": mkt,
+                        "opener_pred": opener_pred,
                     })
                     flag = "🎯" if (orig and orig["flag"]) else ("✓" if card["signals"] else "·")
                     orig_str = ""
@@ -924,6 +1123,12 @@ def main():
                         orig_str = f"  ⇒ {lean} {orig['adj_conf']:+.2f}r{mkt_s}"
                     print(f"  {flag} {game['away'][:3]}@{game['home'][:3]}"
                           f"  {temp:.0f}°F  {relh:.0f}%RH  {we:+.1f}mph{orig_str}")
+
+                    if mkt is not None:
+                        log_candidates.append({
+                            "date": date_str, "home": game["home"], "away": game["away"],
+                            "venue": venue, "total": mkt,
+                        })
             else:
                 print(f"  · {game['away'][:3]}@{game['home'][:3]}"
                       f"  {venue} (not in model)")
@@ -940,10 +1145,13 @@ def main():
 
     all_cards.sort(key=sort_key)
 
-    os.makedirs("docs", exist_ok=True)
+    os.makedirs(DOCS_DIR, exist_ok=True)
     html = generate_html(all_cards, now_utc)
-    with open("docs/index.html", "w", encoding="utf-8") as f:
+    with open(os.path.join(DOCS_DIR, "index.html"), "w", encoding="utf-8") as f:
         f.write(html)
+
+    log_rows = update_totals_log(log_rows, log_candidates, now_utc, DOCS_DIR)
+    print(f"  Totals log: {len(log_rows)} row(s) total after this run")
 
     flagged = sum(1 for c in all_cards if c.get("orig") and c["orig"]["flag"])
     print(f"\nOutput: docs/index.html  ({len(all_cards)} games, {flagged} originated edge(s))")
