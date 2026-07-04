@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
 """
-MLB Weather Flag Tool — v3: ANTICIPATORY OPENER TRIPWIRE (2026-07-04)
+MLB Weather Flag Tool — v3.1: ANTICIPATORY OPENER TRIPWIRE (2026-07-04)
 Runs via GitHub Actions at 5am and 5pm CDT (10:00 and 22:00 UTC).
 Outputs docs/index.html — served via GitHub Pages.
+
+v3.1 fixes (same day, found via first live totals_log.csv):
+  - lookup_market_total: ±1-day fallback REMOVED — it glued Saturday's total
+    onto Sunday's card in back-to-back same-matchup series (every MLB series).
+  - fetch_market_totals: in-progress games skipped — live in-game totals were
+    being logged as "openers" and would poison the predictor.
 
 v3 changes:
   - Adds an opener predictor (predict_opener): walk-forward-validated model of
@@ -476,9 +482,22 @@ def fetch_market_totals():
         return {}
 
     totals = {}
+    now_utc = datetime.datetime.now(UTC)
+    skipped_live = 0
     for ev in events:
         home, away = ev.get("home_team"), ev.get("away_team")
-        utc_date = (ev.get("commence_time") or "")[:10]
+        commence = ev.get("commence_time") or ""
+        utc_date = commence[:10]
+        # v3.1: skip games that have already started — their totals are LIVE
+        # in-game lines, not pregame numbers. Logging them poisons the opener
+        # history (found 2026-07-04: a 6:47pm CDT run logged GABP 14.5 mid-game).
+        try:
+            ct = datetime.datetime.fromisoformat(commence.replace("Z", "+00:00"))
+            if ct <= now_utc:
+                skipped_live += 1
+                continue
+        except ValueError:
+            pass  # unparseable commence_time — keep rather than drop the game
         points = []
         for bk in ev.get("bookmakers", []):
             for mkt in bk.get("markets", []):
@@ -493,26 +512,28 @@ def fetch_market_totals():
             mid = len(points) // 2
             med = points[mid] if len(points) % 2 else (points[mid-1] + points[mid]) / 2
             totals[(home, away, utc_date)] = med
-    print(f"  Market totals loaded for {len(totals)} game(s)")
+    print(f"  Market totals loaded for {len(totals)} game(s)"
+          + (f" ({skipped_live} in-progress game(s) skipped)" if skipped_live else ""))
     return totals
 
 
 def lookup_market_total(totals, home, away, game_dt_str):
-    """Match by team names + UTC date, with a ±1 day fallback for late games."""
+    """Match by team names + EXACT UTC date only.
+
+    v3.1: the old ±1 day fallback was removed. MLB series are the same matchup
+    on consecutive days, so the fallback could glue an adjacent day's total onto
+    the wrong card (found 2026-07-04: Sunday TwinsYankees card showed Saturday's
+    total of 10 while Sunday's real line was 8.5 — a phantom +1.5-run "edge").
+    Both the MLB schedule and the Odds API report UTC dates, so exact match is
+    correct; if the API doesn't have the game yet, showing no market total is
+    the right behavior — the v3 tripwire line covers exactly that case.
+    """
     if not totals:
         return None
     utc_date = (game_dt_str or "")[:10]
-    for d_off in (0, 1, -1):
-        if utc_date:
-            try:
-                d = (datetime.date.fromisoformat(utc_date)
-                     + datetime.timedelta(days=d_off)).isoformat()
-            except ValueError:
-                d = utc_date
-            v = totals.get((home, away, d))
-            if v is not None:
-                return v
-    return None
+    if not utc_date:
+        return None
+    return totals.get((home, away, utc_date))
 
 # ── Totals log (first-seen opener capture) ────────────────────────────────────
 # Persists the first market total ever seen per (date, home, away) to
