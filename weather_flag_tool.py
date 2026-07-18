@@ -140,8 +140,15 @@ PARKS = {
         "wind_b":  0.1166, "wind_t":  1.20,
         "base_temp": 69.2, "base_relh": 52.2,
         "confirmed": {},
-        "notes": "Wrigley wind is real vs the CLOSE (t=2.27) but partially priced into openers — "
-                 "no confirmed opener edge. If betting wind here, you're racing the market, not beating the number.",
+        "confirmed_wind_dir": "in",        # wind-IN only (see note) → UNDER flag
+        "confirmed_wind_tier": "moderate",
+        "notes": "Wind-IN → UNDER flagged via categorical (observed-direction) backtest: 59.8% Unders "
+                 "vs opener at 5-40mph wind-in (n=102, z=+1.98) vs 52.9% calm baseline "
+                 "(wrigley_crosswind_v2.py, 2026-07-18). PRELIMINARY: flag uses FORECAST wind projected "
+                 "through cosine, noisier than AN's observed label, so realized edge will run below 59.8%. "
+                 "Wind-OUT→Over (~57%) and crosswind (57.6%, n=33) intentionally NOT flagged — weaker / "
+                 "not significant. Continuous eff_wind OLS was only t=1.20 vs opener; this flag rests on "
+                 "the categorical result, not the OLS.",
     },
     "Target Field": {
         "lat": 44.9817, "lon": -93.2781, "cf_bearing": 5, "tz": "America/Chicago",
@@ -708,7 +715,21 @@ def originate(park, temp, relh, wind_eff):
         contribs["relh"] = park["relh_b"] * (relh - park["base_relh"])
     if wind_eff is not None:
         contribs["wind"] = park["wind_b"] * wind_eff  # baseline 0 = calm/cross
-    confirmed = park.get("confirmed", {})
+
+    # Base confirmed factors (|t| >= 1.5 vs opener). Copy so we can add a
+    # directionally-confirmed wind factor without mutating the park config.
+    confirmed = dict(park.get("confirmed", {}))
+
+    # Directional wind confirmation: some parks have a wind edge confirmed by a
+    # categorical (observed-direction) backtest even though the continuous
+    # eff_wind OLS t is sub-threshold. Fires ONLY when forecast wind blows the
+    # confirmed way. e.g. Wrigley wind-IN -> UNDER (59.8% vs opener at 5-40mph,
+    # n=102, z=+1.98; AN categorical direction; wrigley_crosswind_v2.py 2026-07-18).
+    cwd = park.get("confirmed_wind_dir")   # "in", "out", or None
+    if cwd and wind_eff is not None and "wind" not in confirmed:
+        if (cwd == "in" and wind_eff < 0) or (cwd == "out" and wind_eff > 0):
+            confirmed["wind"] = park.get("confirmed_wind_tier", "moderate")
+
     adj_all = sum(contribs.values())
     adj_conf = sum(v for f, v in contribs.items() if f in confirmed)
     strongest = max((confirmed[f] for f in confirmed if f in contribs), default=None,
