@@ -826,6 +826,62 @@ def stars(abs_t):
     return "★"
 
 # ── HTML generation ───────────────────────────────────────────────────────────
+# ── Sacramento (Sutter Health Park) park anchor ─────────────────────────────────
+# The A's relocated to Sacramento in 2025. The weather regression has no validated
+# coefficients there yet, so instead of a weather delta we give a simple PARK-SCORING
+# anchor: the trailing average of ACTUAL total runs in A's home games this season.
+# Compared to tonight's posted total it yields a rough "fair vs market" read for the
+# documented Sacramento over lean. ROUGH BY DESIGN — it's confounded by who pitched,
+# so it's a starting anchor to adjust by hand (up for weak starters/heat, down for
+# aces), never a model output. Same statsapi source the schedule already uses.
+ATH_TEAM_ID = 133
+SAC_BASELINE_N = 20
+_sac_baseline_cache = {}
+
+def ath_home_baseline(n=SAC_BASELINE_N):
+    """Trailing avg of actual total runs in Athletics HOME games this season.
+    Returns {avg, n_used, last_date} or None. Cached per run."""
+    if "val" in _sac_baseline_cache:
+        return _sac_baseline_cache["val"]
+    today = datetime.date.today()
+    start = datetime.date(today.year, 3, 1)
+    url = ("https://statsapi.mlb.com/api/v1/schedule"
+           f"?sportId=1&teamId={ATH_TEAM_ID}&gameType=R"
+           f"&startDate={start:%Y-%m-%d}&endDate={today:%Y-%m-%d}"
+           "&hydrate=teams(team)")
+    try:
+        r = requests.get(url, timeout=20)
+        r.raise_for_status()
+        data = r.json()
+    except Exception as e:
+        print(f"  Sacramento baseline fetch error: {e}", file=sys.stderr)
+        _sac_baseline_cache["val"] = None
+        return None
+    homes = []
+    for de in data.get("dates", []):
+        for g in de.get("games", []):
+            if g.get("status", {}).get("abstractGameState", "") != "Final":
+                continue
+            teams = g.get("teams", {})
+            home = teams.get("home", {})
+            if home.get("team", {}).get("id") != ATH_TEAM_ID:
+                continue  # home games only
+            hs = home.get("score")
+            aw = teams.get("away", {}).get("score")
+            if hs is None or aw is None:
+                continue
+            homes.append((g.get("gameDate", ""), hs + aw))
+    if len(homes) < 5:
+        _sac_baseline_cache["val"] = None
+        return None
+    homes.sort(key=lambda x: x[0])
+    tail = homes[-n:]
+    val = {"avg": sum(t[1] for t in tail) / len(tail),
+           "n_used": len(tail), "last_date": tail[-1][0][:10]}
+    _sac_baseline_cache["val"] = val
+    return val
+
+
 def render_card(card):
     venue      = card["venue"]
     away       = card["away"]
@@ -967,6 +1023,33 @@ def render_card(card):
                            f"({diff:+.1f} vs expected{verify})")
         tripwire_html = (f'<div class="text-muted mt-1" style="font-size:0.74rem">{action_line}</div>')
 
+    # ── Sacramento park anchor (Sutter Health Park) ────────────────────────
+    sac_html = ""
+    if venue == "Sutter Health Park":
+        base = ath_home_baseline()
+        is_day = bool(game_local) and game_local.hour < 17
+        day_tag = ' <span class="badge text-bg-warning text-dark">☀ DAY</span>' if is_day else ""
+        if base and market_total is not None:
+            gap = base["avg"] - market_total
+            if gap >= 1.0:
+                cls, lean = "text-bg-success", f"🎯 OVER lean +{gap:.1f} vs anchor"
+            elif gap >= 0.3:
+                cls, lean = "text-bg-secondary", f"slight over +{gap:.1f} — need a confirming factor"
+            else:
+                cls, lean = "text-bg-secondary", f"no edge ({gap:+.1f} vs anchor)"
+            sac_html = (
+                f'<div class="mt-1"><span class="badge {cls}" style="font-size:0.85rem">'
+                f'🅰 Sacramento anchor {base["avg"]:.1f} (last {base["n_used"]} home)'
+                f' · posted {market_total:g} · {lean}</span>{day_tag}'
+                f'<div class="text-muted" style="font-size:0.72rem">rough park anchor = avg actual'
+                f" runs in A's home games; nudge up for weak starters/heat, down for aces."
+                f' Bet small, shop the lowest total, log day/night.</div></div>')
+        elif base:
+            sac_html = (
+                f'<div class="mt-1"><span class="badge text-bg-secondary" style="font-size:0.85rem">'
+                f'🅰 Sacramento anchor {base["avg"]:.1f} runs (last {base["n_used"]} home)'
+                f' · posted total N/A</span>{day_tag}</div>')
+
     # Net signal headline
     if direction == "OVER":
         headline = (f'<span class="badge text-bg-success" style="font-size:0.85rem">'
@@ -1005,6 +1088,7 @@ def render_card(card):
       {roof_html}
       {orig_html}
       {tripwire_html}
+      {sac_html}
       <div class="mt-1">{headline}</div>
       {detail_html}
       {notes_html}
