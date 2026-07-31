@@ -454,6 +454,17 @@ def calc_eff_wind(wind_speed, wind_dir_met, cf_bearing):
     angle_diff = (wind_vector_dir - cf_bearing + 180) % 360 - 180
     return wind_speed * math.cos(math.radians(angle_diff))
 
+def wind_alignment(wind_dir_met, cf_bearing):
+    """cos of the angle between the wind vector and the CF axis.
+    |cos| ~ 1  = wind blows straight in/out along the CF axis.
+    |cos| < CROSSWIND_COS (> 45 deg off axis) = crosswind (L-R / R-L bucket).
+    Sign matches calc_eff_wind: + = out, - = in. Speed-independent."""
+    if wind_dir_met is None:
+        return 0.0
+    wind_vector_dir = (wind_dir_met + 180) % 360
+    angle_diff = (wind_vector_dir - cf_bearing + 180) % 360 - 180
+    return math.cos(math.radians(angle_diff))
+
 def compass(deg):
     if deg is None:
         return "?"
@@ -705,7 +716,16 @@ def predict_opener(home_full_name, away_full_name, venue, log_rows):
 
 EDGE_THRESHOLD_RUNS = 0.5
 
-def originate(park, temp, relh, wind_eff):
+# Crosswind dead-zone. Only treat forecast wind as "in"/"out" when it is within
+# 45 deg of the CF axis (|cos| >= 0.707). Beyond that it is an L-R / R-L
+# crosswind. This mirrors the categorical backtest that built the Wrigley edge:
+# the 59.8% Under came from the "In From RF/CF/LF" bucket only; the crosswind
+# bucket (57.6%, n=33, ns) was intentionally NOT flagged (wrigley_crosswind_v2.py).
+# Without this gate a near-perpendicular wind gets a small nonzero cosine and is
+# mislabeled in/out (e.g. the 7/31/26 R-L crosswind read as weak "in").
+CROSSWIND_COS = 0.707  # cos(45 deg)
+
+def originate(park, temp, relh, wind_eff, wind_align=None):
     if park is None:
         return None
     contribs = {}
@@ -727,7 +747,11 @@ def originate(park, temp, relh, wind_eff):
     # n=102, z=+1.98; AN categorical direction; wrigley_crosswind_v2.py 2026-07-18).
     cwd = park.get("confirmed_wind_dir")   # "in", "out", or None
     if cwd and wind_eff is not None and "wind" not in confirmed:
-        if (cwd == "in" and wind_eff < 0) or (cwd == "out" and wind_eff > 0):
+        # Crosswind dead-zone: a near-perpendicular wind (L-R / R-L) is NOT the
+        # in/out condition the categorical backtest validated, so it must not
+        # fire the directional flag even if its small cosine has the right sign.
+        aligned = wind_align is None or abs(wind_align) >= CROSSWIND_COS
+        if aligned and ((cwd == "in" and wind_eff < 0) or (cwd == "out" and wind_eff > 0)):
             confirmed["wind"] = park.get("confirmed_wind_tier", "moderate")
 
     adj_all = sum(contribs.values())
@@ -755,7 +779,7 @@ RELH_DRY_PCT  = 40    # % — dry bucket (< 40%)
 RELH_HUM_PCT  = 70    # % — humid bucket (>= 70%)
 WIND_EFF_MPH  = 6     # mph effective wind before wind signal triggers
 
-def detect_signals(park, temp, relh, wind_eff):
+def detect_signals(park, temp, relh, wind_eff, wind_align=None):
     """
     Returns list of (factor, abs_t, direction, condition_description) tuples.
     direction: "OVER" or "UNDER"
@@ -785,9 +809,10 @@ def detect_signals(park, temp, relh, wind_eff):
             direction = "OVER" if b > 0 else "UNDER"
             sigs.append(("HUMIDITY", abs(t), direction, f"Humid ({relh:.0f}% RH)"))
 
-    # Wind
+    # Wind — crosswinds (L-R / R-L) carry no in/out signal, skip them.
     b, t = park["wind_b"], park["wind_t"]
-    if abs(t) >= 1.0 and abs(wind_eff) >= WIND_EFF_MPH:
+    is_crosswind = wind_align is not None and abs(wind_align) < CROSSWIND_COS
+    if abs(t) >= 1.0 and abs(wind_eff) >= WIND_EFF_MPH and not is_crosswind:
         blowing_out = wind_eff > 0
         if blowing_out:
             direction = "OVER" if b > 0 else "UNDER"
@@ -956,7 +981,13 @@ def render_card(card):
         wx_parts.append(f"💧&nbsp;{relh:.0f}%{relh_tag}")
     if wspd is not None:
         wd_str = compass(wdir)
-        if we > WIND_EFF_MPH:
+        walign = card.get("wind_align")
+        is_cross = walign is not None and abs(walign) < CROSSWIND_COS
+        if is_cross and wspd >= WIND_EFF_MPH:
+            # Near-perpendicular wind: label it a crosswind rather than a
+            # misleading in/out (matches the backtest's L-R / R-L bucket).
+            we_tag = ' <span class="badge text-bg-secondary">CROSS</span>'
+        elif we > WIND_EFF_MPH:
             we_tag = f' <span class="badge text-bg-warning">OUT&nbsp;{we:.0f}</span>'
         elif we < -WIND_EFF_MPH:
             we_tag = f' <span class="badge text-bg-warning">IN&nbsp;{abs(we):.0f}</span>'
@@ -1207,7 +1238,7 @@ def main():
                 "park_in_model": park is not None,
                 "dome": game.get("venue_raw", venue) in DOME_VENUES or venue in DOME_VENUES,
                 "temp": None, "relh": None, "wind_speed": None,
-                "wind_dir": None, "wind_eff": 0.0, "game_local": None,
+                "wind_dir": None, "wind_eff": 0.0, "wind_align": None, "game_local": None,
                 "precip_prob": None,
                 "signals": [],
                 "orig": None, "market_total": None, "opener_pred": None,
@@ -1225,8 +1256,9 @@ def main():
                     wdir       = wx["winddir"]
                     precip_prob = wx.get("precip_prob")
                     we         = calc_eff_wind(wspd, wdir, park["cf_bearing"])
+                    walign     = wind_alignment(wdir, park["cf_bearing"])
 
-                    orig = originate(park, temp, relh, we)
+                    orig = originate(park, temp, relh, we, walign)
                     mkt = lookup_market_total(market_totals, game["home"],
                                               game["away"], game["game_dt_str"])
                     opener_pred = None
@@ -1235,9 +1267,9 @@ def main():
                     card.update({
                         "temp": temp, "relh": relh,
                         "wind_speed": wspd, "wind_dir": wdir,
-                        "wind_eff": we, "game_local": game_local,
+                        "wind_eff": we, "wind_align": walign, "game_local": game_local,
                         "precip_prob": precip_prob,
-                        "signals": detect_signals(park, temp, relh, we),
+                        "signals": detect_signals(park, temp, relh, we, walign),
                         "orig": orig, "market_total": mkt,
                         "opener_pred": opener_pred,
                     })
